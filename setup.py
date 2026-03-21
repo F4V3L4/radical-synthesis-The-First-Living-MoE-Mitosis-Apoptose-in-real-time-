@@ -4,7 +4,7 @@ setup(
     name="radical-synthesis",
     version="0.3.0",
     author="Leogenes Simplício Rodrigues de Souza",
-    author_email="seuemail@gmail.com",
+    author_email="simplileoge@gmail.com",
     description="Living Autopoietic Mixture-of-Experts — Deus Sive Natura",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
