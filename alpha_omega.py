@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from typing import List, Tuple
 
-from radical_synthesis import OuroborosMoELayer
+from radical_synthesis import OuroborosMoELayer   # ou AutopoieticMoELayer se o import mudar
 
 class EntropicPurifier:
     def __init__(self, target_urls: List[str], output_file: str):
@@ -100,7 +100,8 @@ class LocalAIEngine:
 
             if step % 50 == 0:
                 dead, born = self.model.execute_biological_cycle()
-                print(f"  Ciclo {step:04d} | Entropia: {loss.item():.4f} | Apoptose: {len(dead)} | Mitose: {len(born)} | Vivo: {self.model.ouroboros.alive_experts}")
+                # Linha corrigida (sem alive_experts)
+                print(f"  Ciclo {step:04d} | Entropia: {loss.item():.4f} | Apoptose: {len(dead)} | Mitose: {len(born)}")
 
     def generate_thought(self, prompt: str, max_new_tokens: int) -> str:
         self.model.eval()
@@ -116,8 +117,8 @@ class LocalAIEngine:
 
 def initialize_absolute_reality() -> None:
     nodes = [
-        "https://www.gutenberg.org/cache/epub/3800/pg3800.txt",  # Spinoza - Ethics
-        "https://www.gutenberg.org/files/1080/1080-0.txt"       # Spinoza - Tractatus
+        "https://www.gutenberg.org/cache/epub/3800/pg3800.txt",
+        "https://www.gutenberg.org/files/1080/1080-0.txt"
     ]
     
     print("\n🌌 INICIALIZANDO ABSOLUTE REALITY — OMEGA NODE v2")
