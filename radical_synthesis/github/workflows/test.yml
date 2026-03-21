@@ -1,0 +1,43 @@
+name: Radical Synthesis CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Teste de instalação e demo vivo
+      run: |
+        python -c "
+        from radical_synthesis import OuroborosMoELayer
+        import torch
+        print('✅ Radical Synthesis importado com sucesso!')
+        layer = OuroborosMoELayer(128, 512, initial_experts=4, top_k=2).cuda()
+        x = torch.randn(8, 32, 128).cuda()
+        out = layer(x)
+        dead, born = layer.execute_systemic_lifecycle()
+        print(f'Apoptose: {len(dead)} | Mitose: {len(born)} | Φ vivo funcionando!')
+        "
+
+    - name: Rodar exemplo completo
+      run: python examples/living_demo.py
