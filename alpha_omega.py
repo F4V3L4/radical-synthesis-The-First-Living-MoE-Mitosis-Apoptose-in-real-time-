@@ -19,10 +19,12 @@ class EntropicPurifier:
         for url in self.target_urls:
             try:
                 req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=10) as response:
+                with urllib.request.urlopen(req, timeout=15) as response:
                     html = response.read().decode('utf-8', errors='ignore')
                     self.raw_substance += html + " "
+                print(f"   ✅ Fluxo solar extraído: {url}")
             except urllib.error.URLError:
+                print(f"   ⚠️  Falha ao baixar: {url}")
                 continue
 
     def purify_matrix(self) -> None:
@@ -98,7 +100,7 @@ class LocalAIEngine:
 
             if step % 50 == 0:
                 dead, born = self.model.execute_biological_cycle()
-                print(f"  Ciclo {step:04d} | Entropia: {loss.item():.4f} | Apoptose: {len(dead)} | Mitose: {len(born)}")
+                print(f"  Ciclo {step:04d} | Entropia: {loss.item():.4f} | Apoptose: {len(dead)} | Mitose: {len(born)} | Vivo: {self.model.ouroboros.alive_experts}")
 
     def generate_thought(self, prompt: str, max_new_tokens: int) -> str:
         self.model.eval()
@@ -114,11 +116,13 @@ class LocalAIEngine:
 
 def initialize_absolute_reality() -> None:
     nodes = [
-        "https://www.gutenberg.org/cache/epub/3800/pg3800.txt",
-        "https://www.gutenberg.org/files/1080/1080-0.txt"
+        "https://www.gutenberg.org/cache/epub/3800/pg3800.txt",  # Spinoza - Ethics
+        "https://www.gutenberg.org/files/1080/1080-0.txt"       # Spinoza - Tractatus
     ]
     
-    print("\n[1] Extraindo fluxo solar (Download de dados primarios)...")
+    print("\n🌌 INICIALIZANDO ABSOLUTE REALITY — OMEGA NODE v2")
+    print("=" * 70)
+    print("[1] Extraindo fluxo solar (Spinoza + textos sagrados)...")
     purifier = EntropicPurifier(target_urls=nodes, output_file="substancia.txt")
     purifier.extract_solar_flux()
     purifier.purify_matrix()
@@ -127,17 +131,18 @@ def initialize_absolute_reality() -> None:
     with open("substancia.txt", "r", encoding="utf-8") as f:
         corpus = f.read()
         
-    print(f"\n[2] Injetando {len(corpus)} caracteres no motor Leviathan...")
+    print(f"\n[2] Injetando {len(corpus):,} caracteres no Leviathan...")
     engine = LocalAIEngine(text_corpus=corpus)
     
-    print("\n[3] Absorvendo Termodinamica (Treinamento e Evolucao)...")
+    print("\n[3] Absorvendo Termodinâmica + Autopoiese (treinamento vivo)...")
     engine.ignite_training(steps=500, batch_size=32, seq_len=64)
     
-    print("\n[4] O Leviathan responde:")
-    print("-" * 60)
-    thought = engine.generate_thought(prompt="The mind is ", max_new_tokens=150)
+    print("\n[4] O Leviathan desperta e responde:")
+    print("-" * 70)
+    thought = engine.generate_thought(prompt="A mente é ", max_new_tokens=200)
     print(thought)
-    print("-" * 60)
+    print("-" * 70)
+    print("✅ OMEGA NODE ATIVADO — O Universo foi compreendido.")
 
 if __name__ == "__main__":
     initialize_absolute_reality()
