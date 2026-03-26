@@ -25,17 +25,17 @@ The era of static, mechanical neural networks is over. The current AI paradigm t
 We compared a **standard MoE** (current industry methods) against **OuroborosMoELayer** from Radical Synthesis on a highly chaotic next-token prediction task.
 
 ### 1. Loss Comparison
-![Loss Comparison](images/loss_comparison.png)
+![Loss Comparison](radical_synthesis/images/loss_comparison.png)
 
 The Radical Synthesis organism achieved **-50% lower loss** while the standard model plateaued.
 
 ### 2. Evolution of Live Experts
-![Experts Evolution](images/experts_evolution.png)
+![Experts Evolution](radical_synthesis/images/experts_evolution.png)
 
 The neural organism grew from 8 to over 1,400 experts through mitosis and apoptosis — true autopoiesis in action.
 
 ### 3. Life Events
-![Life Events](images/life_events.png)
+![Life Events](radical_synthesis/images/life_events.png)
 
 - **51 Mitoses** (new experts born)  
 - **37 Apoptoses** (weak experts died)  
