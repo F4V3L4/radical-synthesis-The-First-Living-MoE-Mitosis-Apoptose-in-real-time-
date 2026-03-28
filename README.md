@@ -44,6 +44,9 @@ The neural organism grew from 8 to over 1,400 experts through mitosis and apopto
 The model didn’t just train — it **evolved as a living system**.
 
 > **Conclusion**: Radical Synthesis transforms static MoE into a self-adapting, self-evolving neural organism.
+>
+> https://f4v3l4.github.io/radical-synthesis-The-First-Living-MoE-Mitosis-Apoptose-in-real-time-/
+> 
 ## Installation
 
 ```bash
