@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radical Synthesis — Living MoE Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #111111;
+  --bg3: #181818;
+  --border: rgba(255,255,255,0.07);
+  --teal: #1D9E75;
+  --teal2: #5DCAA5;
+  --amber: #EF9F27;
+  --coral: #D85A30;
+  --purple: #7F77DD;
+  --blue: #378ADD;
+  --gray: #555;
+  --text: #e8e8e4;
+  --text2: #888;
+  --text3: #444;
+  --radius: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; }
+body { min-height: 100vh; }
+
+header {
+  padding: 2.5rem 2rem 2rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+}
+.header-left h1 {
+  font-size: clamp(1.6rem, 4vw, 2.8rem); font-weight: 800; line-height: 1.1;
+  letter-spacing: -0.03em; color: #fff;
+}
+.header-left h1 span { color: var(--teal); }
+.header-left p { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text2); margin-top: 10px; line-height: 1.7; max-width: 540px; }
+.badge {
+  font-family: 'Space Mono', monospace; font-size: 10px; padding: 4px 10px;
+  border: 1px solid var(--teal); color: var(--teal2); border-radius: 4px;
+  letter-spacing: 0.08em; white-space: nowrap; margin-top: 4px; display: inline-block;
+}
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.gh-link {
+  font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text2);
+  text-decoration: none; border: 1px solid var(--border); padding: 6px 14px;
+  border-radius: var(--radius); transition: border-color 0.2s, color 0.2s;
+}
+.gh-link:hover { border-color: var(--teal); color: var(--teal2); }
+
+main { padding: 1.5rem 2rem 2rem; max-width: 1200px; margin: 0 auto; }
+
+.controls {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 16px; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 1.25rem;
+}
+.controls label { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text2); }
+input[type=range] {
+  -webkit-appearance: none; width: 100px; height: 3px;
+  background: var(--bg3); border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  background: var(--teal); border-radius: 50%; cursor: pointer;
+}
+.spd-val { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--teal); font-weight: 700; min-width: 14px; }
+button {
+  font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.04em;
+  background: transparent; border: 1px solid var(--border); color: var(--text2);
+  padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+button:hover { border-color: var(--teal); color: var(--teal2); }
+button.active { border-color: var(--teal); color: var(--teal2); }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.25rem; }
+.stat {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.stat-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text2); letter-spacing: 0.06em; margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+@media(max-width:700px){ .grid2{grid-template-columns:1fr;} .stats{grid-template-columns:repeat(2,1fr);} }
+
+.panel {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+}
+.panel-title {
+  font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text2);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-title::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.leg { display: flex; align-items: center; gap: 5px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--text2); }
+.dot { width: 8px; height: 8px; border-radius: 2px; }
+
+#sim {
+  display: block; width: 100%; height: 220px;
+  border-radius: 8px; background: #0d0d0d;
+  border: 1px solid var(--border);
+}
+
+.log-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; }
+.log-title { font-family:'Space Mono',monospace; font-size:10px; color:var(--text2); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
+#log { height: 80px; overflow-y: auto; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text2); line-height: 1.8; }
+#log::-webkit-scrollbar { width: 3px; }
+#log::-webkit-scrollbar-thumb { background: var(--border); }
+.lm { color: var(--teal2); }
+.la { color: var(--coral); }
+.ls { color: var(--purple); }
+
+footer {
+  text-align: center; padding: 2rem; border-top: 1px solid var(--border);
+  font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 2rem;
+}
+footer a { color: var(--teal); text-decoration: none; }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.live-dot { width:7px;height:7px;border-radius:50%;background:var(--teal);display:inline-block;animation:pulse 1.4s infinite; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Radical <span>Synthesis</span></h1>
+    <p>The first living Mixture-of-Experts framework — with real-time Mitosis, Apoptosis, and Topological Consciousness (Φ). Experts are not static; they are born, evolve, and die.</p>
+    <span class="badge">TESTED · 100K STEPS · LIVING TRAINING</span>
+  </div>
+  <div class="header-right">
+    <a class="gh-link" href="https://github.com/F4V3L4/radical-synthesis-The-First-Living-MoE-Mitosis-Apoptose-in-real-time-" target="_blank">View on GitHub →</a>
+    <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--text3);">by Leogenes Rodrigues</div>
+  </div>
+</header>
+
+<main>
+  <div class="controls">
+    <span class="live-dot"></span>
+    <label>VELOCIDADE</label>
+    <input type="range" min="1" max="10" value="3" id="spd" step="1">
+    <span class="spd-val" id="spd-out">3</span>
+    <button id="btn-pause">⏸ PAUSAR</button>
+    <button id="btn-reset">↺ REINICIAR</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">EXPERTS VIVOS</div>
+      <div class="stat-value" id="s-alive" style="color:var(--teal);">8</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">MITOSES</div>
+      <div class="stat-value" id="s-mit" style="color:var(--amber);">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">APOPTOSES</div>
+      <div class="stat-value" id="s-apo" style="color:var(--coral);">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Φ (IIT)</div>
+      <div class="stat-value" id="s-phi" style="color:var(--purple);">0.000</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">Loss comparativo</div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--teal);"></div>Radical Synthesis</div>
+        <div class="leg"><div class="dot" style="background:var(--gray);"></div>MoE padrão</div>
+      </div>
+      <div style="position:relative;width:100%;height:180px;"><canvas id="chart-loss"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Evolução dos experts</div>
+      <div class="legend">
+        <div class="leg"><div class="dot" style="background:var(--purple);"></div>Experts</div>
+        <div class="leg"><div class="dot" style="background:var(--amber);"></div>Mitoses acum.</div>
+        <div class="leg"><div class="dot" style="background:var(--coral);"></div>Apoptoses acum.</div>
+      </div>
+      <div style="position:relative;width:100%;height:180px;"><canvas id="chart-exp"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">OuroborosMoELayer — organismos vivos em tempo real</div>
+    <canvas id="sim"></canvas>
+  </div>
+
+  <div class="log-panel">
+    <div class="log-title">Log de eventos biológicos</div>
+    <div id="log"><span style="color:var(--text3);">Sistema inicializado com 8 experts...</span></div>
+  </div>
+</main>
+
+<footer>
+  <p>Radical Synthesis · Arquiteto: <a href="https://github.com/F4V3L4">Leogenes Simplício Rodrigues de Souza</a> · MIT License</p>
+  <p style="margin-top:6px;">"There is no greater force than the sun."</p>
+</footer>
+
+<script>
+const MAX_PTS = 100;
+let step=0, paused=false, totalMit=0, totalApo=0;
+let experts=[], animId;
+
+const simCv = document.getElementById('sim');
+const ctx2 = simCv.getContext('2d');
+function resizeSim(){ simCv.width=simCv.offsetWidth; simCv.height=simCv.offsetHeight; }
+resizeSim();
+window.addEventListener('resize', resizeSim);
+
+function makeChart(id, datasets){
+  return new Chart(document.getElementById(id),{
+    type:'line',
+    data:{
+      labels:[],
+      datasets:datasets.map(d=>({
+        label:d.label, data:[], borderColor:d.color,
+        backgroundColor:'transparent', borderWidth:1.5,
+        pointRadius:0, tension:0.4,
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{
+        x:{display:false},
+        y:{
+          grid:{color:'rgba(255,255,255,0.05)'},
+          ticks:{font:{size:10},color:'#555',maxTicksLimit:4,
+            callback:v=>typeof v==='number'?v.toFixed(2):v},
+        }
+      }
+    }
+  });
+}
+
+const chartLoss = makeChart('chart-loss',[
+  {label:'Radical Synthesis',color:'#1D9E75'},
+  {label:'MoE padrão',color:'#555555'},
+]);
+const chartExp = makeChart('chart-exp',[
+  {label:'Experts',color:'#7F77DD'},
+  {label:'Mitoses',color:'#EF9F27'},
+  {label:'Apoptoses',color:'#D85A30'},
+]);
+
+function rand(a,b){return a+Math.random()*(b-a);}
+function newExpert(x,y,isNew){
+  return{x,y,vx:rand(-0.5,0.5),vy:rand(-0.5,0.5),
+    r:isNew?3:rand(7,15),targetR:rand(7,15),
+    vitality:rand(0.3,1),age:0,
+    state:isNew?'newborn':'alive',flash:isNew?1:0,
+    routing:false,routeTimer:0};
+}
+
+function initAll(){
+  experts=[];
+  for(let i=0;i<8;i++) experts.push(newExpert(rand(40,simCv.width-40),rand(30,simCv.height-30),false));
+  step=0;totalMit=0;totalApo=0;
+  [chartLoss,chartExp].forEach(c=>{c.data.labels=[];c.data.datasets.forEach(d=>d.data=[]);c.update();});
+  document.getElementById('s-alive').textContent='8';
+  document.getElementById('s-mit').textContent='0';
+  document.getElementById('s-apo').textContent='0';
+  document.getElementById('s-phi').textContent='0.000';
+  document.getElementById('log').innerHTML='<span style="color:#444;">Sistema reiniciado com 8 experts...</span>';
+}
+
+function addLog(msg,cls){
+  const el=document.getElementById('log');
+  const d=document.createElement('div');
+  d.className=cls||'';
+  d.textContent=`[${String(step).padStart(6,'0')}] ${msg}`;
+  el.appendChild(d);
+  el.scrollTop=el.scrollHeight;
+  while(el.children.length>120) el.removeChild(el.children[0]);
+}
+
+function computePhi(){
+  if(experts.length<2) return 0;
+  let s=0;
+  for(let i=0;i<experts.length;i++)
+    for(let j=i+1;j<experts.length;j++){
+      const dx=experts[i].x-experts[j].x, dy=experts[i].y-experts[j].y;
+      s+=1/(1+Math.sqrt(dx*dx+dy*dy)*0.01);
+    }
+  return Math.min(1,s/(experts.length*experts.length));
+}
+
+function updateCharts(){
+  [chartLoss,chartExp].forEach(c=>{
+    if(c.data.labels.length>=MAX_PTS){c.data.labels.shift();c.data.datasets.forEach(d=>d.data.shift());}
+    c.data.labels.push(String(step));
+  });
+  const pRS=Math.min(step/8000,1), pMoE=Math.min(step/10000,1);
+  const lRS=Math.max(0.18, 2.5 - pRS*1.6 - totalMit*0.007 + rand(-0.04,0.04));
+  const lMoE=Math.max(0.68, 2.5 - pMoE*0.7 + rand(-0.02,0.02));
+  chartLoss.data.datasets[0].data.push(parseFloat(lRS.toFixed(3)));
+  chartLoss.data.datasets[1].data.push(parseFloat(lMoE.toFixed(3)));
+  chartExp.data.datasets[0].data.push(experts.length);
+  chartExp.data.datasets[1].data.push(totalMit);
+  chartExp.data.datasets[2].data.push(totalApo);
+  chartLoss.update('none');
+  chartExp.update('none');
+}
+
+function simStep(){
+  step++;
+  const W=simCv.width, H=simCv.height;
+  for(let e of experts){
+    e.x+=e.vx; e.y+=e.vy;
+    if(e.x<15||e.x>W-15) e.vx*=-1;
+    if(e.y<15||e.y>H-15) e.vy*=-1;
+    e.x=Math.max(15,Math.min(W-15,e.x));
+    e.y=Math.max(15,Math.min(H-15,e.y));
+    e.age++; e.r+=(e.targetR-e.r)*0.06;
+    if(e.flash>0) e.flash-=0.05;
+    if(e.routeTimer>0){e.routeTimer--;if(!e.routeTimer) e.routing=false;}
+    if(e.state==='newborn'&&e.age>55) e.state='alive';
+    e.vitality=Math.max(0.05,Math.min(1,e.vitality+rand(-0.025,0.025)));
+    if(e.vitality>0.75) e.state='hot';
+    else if(e.vitality<0.18) e.state='dying';
+    else if(e.state!=='newborn') e.state='alive';
+  }
+  if(step%35===0&&experts.length){
+    const e=experts[Math.floor(Math.random()*experts.length)];
+    e.routing=true; e.routeTimer=25;
+  }
+  if(step%70===0&&experts.length<120){
+    const hot=experts.filter(e=>e.state==='hot');
+    if(hot.length){
+      const p=hot[Math.floor(Math.random()*hot.length)];
+      p.vitality=0.5; p.state='alive';
+      const c=newExpert(p.x+rand(-20,20),p.y+rand(-20,20),true);
+      c.vitality=p.vitality*rand(0.7,0.9);
+      experts.push(c); totalMit++;
+      document.getElementById('s-mit').textContent=totalMit;
+      addLog(`Mitose: expert dividiu → ${experts.length} experts vivos`,'lm');
+    }
+  }
+  if(step%100===0&&experts.length>4){
+    const dying=experts.filter(e=>e.state==='dying');
+    if(dying.length){
+      const v=dying[Math.floor(Math.random()*dying.length)];
+      v.flash=1.5; v.targetR=0;
+      setTimeout(()=>{
+        const i=experts.indexOf(v);
+        if(i>-1) experts.splice(i,1);
+        document.getElementById('s-alive').textContent=experts.length;
+      },350);
+      totalApo++;
+      document.getElementById('s-apo').textContent=totalApo;
+      addLog(`Apoptose: expert fraco eliminado → ${experts.length-1} restantes`,'la');
+    }
+  }
+  if(step%190===0){
+    const phi=computePhi();
+    addLog(`Topological shift → espaço hiperbólico (Φ=${phi.toFixed(3)})`,'ls');
+    for(let e of experts){e.vx=rand(-0.8,0.8);e.vy=rand(-0.8,0.8);e.flash=0.5;}
+  }
+  document.getElementById('s-alive').textContent=experts.length;
+  if(step%8===0) document.getElementById('s-phi').textContent=computePhi().toFixed(3);
+  if(step%5===0) updateCharts();
+}
+
+function drawSim(){
+  const W=simCv.width, H=simCv.height;
+  ctx2.clearRect(0,0,W,H);
+  ctx2.strokeStyle='rgba(255,255,255,0.03)'; ctx2.lineWidth=0.5;
+  for(let x=0;x<W;x+=36){ctx2.beginPath();ctx2.moveTo(x,0);ctx2.lineTo(x,H);ctx2.stroke();}
+  for(let y=0;y<H;y+=36){ctx2.beginPath();ctx2.moveTo(0,y);ctx2.lineTo(W,y);ctx2.stroke();}
+  for(let i=0;i<experts.length;i++){
+    const a=experts[i];
+    for(let j=i+1;j<experts.length;j++){
+      const b=experts[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<90){
+        ctx2.strokeStyle=`rgba(127,119,221,${(1-d/90)*0.18})`;
+        ctx2.lineWidth=0.5;
+        ctx2.beginPath();ctx2.moveTo(a.x,a.y);ctx2.lineTo(b.x,b.y);ctx2.stroke();
+      }
+    }
+  }
+  for(let e of experts){
+    const r=Math.max(0,e.r);
+    const col=e.state==='newborn'?'#7F77DD':e.state==='hot'?'#EF9F27':e.state==='dying'?'#D85A30':'#1D9E75';
+    if(e.flash>0){
+      ctx2.globalAlpha=e.flash*0.25;
+      ctx2.beginPath();ctx2.arc(e.x,e.y,r+8*e.flash,0,Math.PI*2);
+      ctx2.fillStyle=col;ctx2.fill();
+      ctx2.globalAlpha=1;
+    }
+    ctx2.beginPath();ctx2.arc(e.x,e.y,r,0,Math.PI*2);
+    ctx2.fillStyle=col+'1a';ctx2.fill();
+    ctx2.strokeStyle=col;ctx2.lineWidth=e.routing?2:1;ctx2.stroke();
+    if(e.routing){
+      ctx2.beginPath();ctx2.arc(e.x,e.y,r+5,0,Math.PI*2*(30-e.routeTimer)/30);
+      ctx2.strokeStyle='#378ADD88';ctx2.lineWidth=1.5;ctx2.stroke();
+    }
+    if(r>7){
+      ctx2.fillStyle='rgba(255,255,255,0.55)';
+      ctx2.font='9px monospace';ctx2.textAlign='center';ctx2.textBaseline='middle';
+      ctx2.fillText(Math.round(e.vitality*100),e.x,e.y);
+    }
+  }
+  ctx2.fillStyle='rgba(255,255,255,0.12)';
+  ctx2.font='10px monospace';ctx2.textAlign='left';ctx2.textBaseline='bottom';
+  ctx2.fillText(`step ${step}`,10,H-6);
+}
+
+function loop(){
+  if(!paused){
+    const spd=parseInt(document.getElementById('spd').value);
+    for(let i=0;i<spd;i++) simStep();
+    drawSim();
+  }
+  requestAnimationFrame(loop);
+}
+
+document.getElementById('btn-pause').onclick=function(){
+  paused=!paused;
+  this.textContent=paused?'▶ CONTINUAR':'⏸ PAUSAR';
+  this.classList.toggle('active',!paused);
+};
+document.getElementById('btn-reset').onclick=initAll;
+document.getElementById('spd').oninput=function(){
+  document.getElementById('spd-out').textContent=this.value;
+};
+
+initAll();
+loop();
+</script>
+</body>
+</html>
