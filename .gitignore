@@ -6,3 +6,4 @@ build/
 substancia.txt
 *.pt
 *.pth
+.venv/
