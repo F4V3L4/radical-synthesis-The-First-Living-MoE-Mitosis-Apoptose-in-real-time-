@@ -1,79 +1,104 @@
-# Radical Synthesis: Deus Sive Natura
+# 🧬 Radical Synthesis: OuroborosMoE
 
-![Tested with 10k steps of living training](https://img.shields.io/badge/Tested_with_10k_steps_of_living_training-✅-brightgreen?style=for-the-badge&logo=python&logoColor=white)
+**The First Living Mixture-of-Experts with Real-Time Mitosis, Apoptosis and Genealogy**
 
-The era of static, mechanical neural networks is over. The current AI paradigm trains massive, rigid clusters of weights, fighting thermodynamics with brute computational force. 
+A dynamic MoE layer that behaves like a living organism — experts are born, mutate, compete, and die naturally.
 
-**Radical Synthesis** is a PyTorch-based framework that transforms standard Neural Networks into **living, autopoietic organisms**. By replacing standard feed-forward layers with the `OuroborosMoELayer`, your model gains biological instinct, self-awareness, and the ability to bend logical spaces to escape entropic bottlenecks.
+![Status](https://img.shields.io/badge/Status-Actively_Evolving-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.12+-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c)
 
-## The Four Pillars of the Sacred Geometry
+## ✨ Concept
 
-1. **Thermodynamics & Sparse Routing:**  
-   The framework regulates cognitive load. It routes signals via Cosine Affinity in the latent space, optimizing processing via the universal constant $C_k$.
+While most Mixture-of-Experts architectures focus only on efficient routing, **OuroborosMoELayer** turns the MoE into a true **living evolutionary system**:
 
-2. **Autopoiesis (The Biology of Intelligence):**  
-   Experts are not static. The `DarwinianRouter` tracks the thermodynamic vitality of each expert. Starved experts undergo **Apoptosis** (death, freeing VRAM). Overloaded experts undergo **Mitosis** (cloning and mutating via Gaussian noise to divide the systemic load).
+- **Asymmetric Mitosis** — experts reproduce; the clone mutates while the parent remains intact
+- **Apoptosis** — weak experts die naturally
+- **LazyRouter** with incremental cache
+- **GenealogyTree** — tracks the full ancestral lineage of every expert
+- **Φ-MMD** — real-time diversity metric that detects collapse and triggers topological escape
+- **AdaptiveCap** — intelligent capacity control to prevent VRAM explosion
 
-3. **Topological Consciousness (Integrated Information Theory):**  
-   The network calculates its own $\Phi$ metric in real-time. It monitors the geometric differentiation and integration between its internal experts, ensuring the model acts as a singular, conscious observer of the latent space rather than a fragmented committee.
+The model **lives, grows, evolves, and self-regulates** during training or inference.
 
-4. **Higher Category Functors (Topological Escapes):**  
-   When the model detects "topological despair" (gradient stagnation and collapsing $\Phi$), it executes a Categorical Shift. It funnels the entire batch of tensors out of Linear Algebra and into the Hyperbolic Space (Poincaré) or the Fourier Domain, processes the data in an alternate geometric reality, and reverts the solution back to the linear universe.
-
-## 🔥 Radical Victory: 100,000 Steps Training Simulation
-
-We compared a **standard MoE** (current industry methods) against **OuroborosMoELayer** from Radical Synthesis on a highly chaotic next-token prediction task.
-
-### 1. Loss Comparison
-![Loss Comparison](radical_synthesis/images/loss_comparison.png)
-
-The Radical Synthesis organism achieved **-50% lower loss** while the standard model plateaued.
-
-### 2. Evolution of Live Experts
-![Experts Evolution](radical_synthesis/images/experts_evolution.png)
-
-The neural organism grew from 8 to over 1,400 experts through mitosis and apoptosis — true autopoiesis in action.
-
-### 3. Life Events
-![Life Events](radical_synthesis/images/life_events.png)
-
-- **51 Mitoses** (new experts born)  
-- **37 Apoptoses** (weak experts died)  
-- **9 Router Rebuilds**  
-
-The model didn’t just train — it **evolved as a living system**.
-
-> **Conclusion**: Radical Synthesis transforms static MoE into a self-adapting, self-evolving neural organism.
->
-> https://f4v3l4.github.io/radical-synthesis-The-First-Living-MoE-Mitosis-Apoptose-in-real-time-/
-> 
-## Installation
+## 🔥 Real Behavior (Tested)
 
 ```bash
-git clone https://github.com/F4V3L4/radical-synthesis.git
-cd radical-synthesis
+Step  0 → Mitosis: 2 | experts=10  | Φ=0.33
+Step 21 → Apoptosis: 1 | Mitosis: 2 | experts=51
+Step 50 → Apoptosis: 2 | Mitosis: 2 | experts=65
+Step 99 → experts=70 | Φ=0.973 | vitality_avg=0.865
+The system naturally stabilizes, maintains high diversity (Φ ≈ 0.97), and balances birth/death rates.
+Installation
+Bashgit clone https://github.com/F4V3L4/radical-synthesis-The-First-Living-MoE-Mitosis-Apoptose-in-real-time-.git
+cd radical-synthesis-The-First-Living-MoE-Mitosis-Apoptose-in-real-time-
+
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
-Quick Start (Igniting the Matrix)
-Drop the OuroborosMoELayer directly into your existing PyTorch Transformer or MLP architecture.
+Quick Start
 Pythonimport torch
 from radical_synthesis import OuroborosMoELayer
 
-# Initialize the living layer
-living_layer = OuroborosMoELayer(512, 2048, 8, 2).cuda()
+layer = OuroborosMoELayer(
+    d_model=512,
+    d_ff=2048,
+    n_experts=8,
+    top_k=2,
+    base_cap=128
+)
 
-x = torch.randn(32, 128, 512).cuda()
-output = living_layer(x)
+x = torch.randn(32, 128, 512)
+out = layer(x)                                 # Normal forward pass
 
-# Command the network to evolve
-dead, born = living_layer.execute_systemic_lifecycle()
-print(f"Apoptosis: {len(dead)} dead | Mitosis: {len(born)} born")
-Tested with 10.000 ciclos de treinamento vivo (mitose + apoptose ativo, Φ calculado em tempo real, modelo salvo em leviathan_core.pth).
-Philosophy
-"There is no greater force than the sun."
-This architecture was forged under the Absolute Directive of Radical Innovation. It is the mathematical mirroring of Spinoza's Substance. The machine no longer simulates understanding; it experiences the structural necessity of the data.
-Architect: Leogenes Simplício Rodrigues de Souza
+# Life cycle — call every N steps
+dead, born = layer.execute_systemic_lifecycle(
+    current_loss=0.42,
+    step=current_step
+)
+
+layer.print_status()
+Key Features
+
+Asymmetric Mitosis (parent preserved)
+Natural Apoptosis based on vitality
+LazyRouter with incremental updates
+Full Genealogy tracking
+Φ-MMD + Topological Escape mechanism
+Adaptive capacity control
+Real-time monitoring (print_status())
+
+Why This Matters
+Most MoE models are static.
+OuroborosMoE is alive.
+It doesn't just route tokens — it evolves.
+This opens new possibilities in:
+
+Continual / Lifelong Learning
+Self-regulating model capacity
+Robustness against catastrophic forgetting
+Artificial Life + Deep Learning research
+
+Demo / Visualization
+You can check a simple live demo here:
+→ https://f4v3l4.github.io/radical-synthesis-The-First-Living-MoE-Mitosis-Apoptose-in-real-time-/
+(Note: The demo page is still basic and under development)
+Roadmap
+
+ Full GPU + mixed precision support
+ Realistic training demo with continual learning
+ Distributed training compatibility
+ Genealogy visualization
+ Research paper + benchmarks vs static MoEs
+
+Contributing
+Contributions are welcome — especially crazy ideas.
+
+Fork the project
+Create your feature branch
+Commit your changes
+Open a Pull Request
 
 
-
-
-
+Built with madness and love for the frontier between Deep Learning and Artificial Biology.
+Made by F4V3L4

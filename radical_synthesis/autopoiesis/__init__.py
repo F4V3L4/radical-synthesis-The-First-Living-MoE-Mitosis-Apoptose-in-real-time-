@@ -1,4 +1,3 @@
-from .layer import AutopoieticMoELayer
-from .routing import DarwinianRouter
+from .layer import OuroborosMoELayer
 
-__all__ = ["AutopoieticMoELayer", "DarwinianRouter"]
+__all__ = ["OuroborosMoELayer"]

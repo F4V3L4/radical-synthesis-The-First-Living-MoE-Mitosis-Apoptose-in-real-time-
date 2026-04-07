@@ -1,56 +1,26 @@
-# radical_synthesis/layer.py
-# ─────────────────────────────────────────────────────────────────────────────
-# OuroborosMoELayer — versão com todas as 7 melhorias integradas.
-#
-# COMO USAR ESTE ARQUIVO:
-#   Substitua o layer.py original por este.
-#   Os novos arquivos (adaptive_cap.py, phi_mmd.py, lazy_router.py,
-#   genealogy.py) devem estar na mesma pasta radical_synthesis/.
-#
-# O que mudou em relação ao original:
-#   1. AdaptiveCap          → controla explosão de VRAM
-#   2. Mitose assimétrica   → só o clone muta, pai preservado
-#   3. LazyRouter           → cache incremental, sem rebuild completo
-#   4. phi_mmd              → métrica Φ estável com pools grandes
-#   5. GenealogyTree        → rastreia linhagens evolutivas
-#   6. Flags de ablação     → enable_mitosis / enable_apoptosis / enable_escape
-# ─────────────────────────────────────────────────────────────────────────────
-
 from __future__ import annotations
-
-import math
 from copy import deepcopy
-from typing import Optional
+from typing import List, Tuple, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# ── Novos módulos ────────────────────────────────────────────────────────────
-from .adaptive_cap import AdaptiveCap
-from .phi_mmd      import phi_mmd, COLAPSO_THR
-from .lazy_router  import LazyRouter
-from .genealogy    import GenealogyTree
+from ..adaptive_cap import AdaptiveCap
+from ..phi_mmd import phi_mmd, COLAPSO_THR
+from ..lazy_router import LazyRouter
+from ..genealogy import GenealogyTree
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Expert individual (FFN simples)
-# ─────────────────────────────────────────────────────────────────────────────
 
 class Expert(nn.Module):
-    """
-    Um único expert: FFN com duas camadas lineares e ativação GELU.
-    Cada expert aprende a processar um subconjunto de tokens.
-    """
-
-    _id_counter: int = 0  # contador global de IDs
+    _id_counter: int = 0
 
     def __init__(self, d_model: int, d_ff: int):
         super().__init__()
         self.id = Expert._next_id()
-        self.fc1     = nn.Linear(d_model, d_ff)
-        self.fc2     = nn.Linear(d_ff, d_model)
-        self.vitality: float = 0.5  # começa neutro
+        self.fc1 = nn.Linear(d_model, d_ff)
+        self.fc2 = nn.Linear(d_ff, d_model)
+        self.vitality: float = 0.5
 
     @staticmethod
     def _next_id() -> int:
@@ -61,7 +31,6 @@ class Expert(nn.Module):
         return self.fc2(F.gelu(self.fc1(x)))
 
     def get_centroid(self) -> torch.Tensor:
-        """Vetor representativo para o router (média dos primeiros parâmetros)."""
         slices = []
         for p in self.parameters():
             if p.requires_grad and p.numel() >= 8:
@@ -69,7 +38,7 @@ class Expert(nn.Module):
                 if len(slices) >= 4:
                     break
         if not slices:
-            return torch.zeros(128)
+            return torch.zeros(128, dtype=torch.float32)
         cat = torch.cat(slices)
         if cat.numel() < 128:
             cat = F.pad(cat, (0, 128 - cat.numel()))
@@ -79,306 +48,170 @@ class Expert(nn.Module):
         return f"Expert(id={self.id}, vitality={self.vitality:.3f})"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Camada principal — OuroborosMoELayer
-# ─────────────────────────────────────────────────────────────────────────────
-
 class OuroborosMoELayer(nn.Module):
-    """
-    Camada MoE viva com mitose, apoptose e escape topológico.
-
-    Drop-in replacement para qualquer camada FFN/MoE de Transformer.
-
-    Uso básico:
-        layer = OuroborosMoELayer(d_model=512, d_ff=2048, n_experts=8, top_k=2)
-        x     = torch.randn(batch, seq_len, d_model)
-        out   = layer(x)
-
-        # A cada N steps do treino:
-        dead, born = layer.execute_systemic_lifecycle(
-            current_loss=loss.item(),
-            step=current_step,
-        )
-    """
-
     def __init__(
         self,
-        d_model:    int   = 512,
-        d_ff:       int   = 2048,
-        n_experts:  int   = 8,
-        top_k:      int   = 2,
-        # ── Hiperparâmetros do ciclo de vida ────────────────────────────────
-        overload_thr:    float = 0.85,   # vitality acima disso → mitose
-        starvation_thr:  float = 0.10,   # vitality abaixo disso → apoptose
-        mutation_sigma:  float = 0.01,   # magnitude da mutação na mitose
-        vitality_decay:  float = 0.99,   # decaimento da vitality por step
-        # ── Cap adaptativo ───────────────────────────────────────────────────
-        base_cap:   int   = 256,   # máximo normal de experts
-        min_cap:    int   = 32,    # mínimo absoluto de experts
-        # ── Flags de ablação (para experimentos) ─────────────────────────────
-        enable_mitosis:   bool = True,
+        d_model: int = 512,
+        d_ff: int = 2048,
+        n_experts: int = 8,
+        top_k: int = 2,
+        overload_thr: float = 0.82,
+        starvation_thr: float = 0.78,
+        mutation_sigma: float = 0.08,
+        vitality_decay: float = 0.93,      # decai mais rápido
+        base_cap: int = 128,
+        min_cap: int = 4,
+        enable_mitosis: bool = True,
         enable_apoptosis: bool = True,
-        enable_escape:    bool = True,
+        enable_escape: bool = True,
     ):
         super().__init__()
-
-        self.d_model         = d_model
-        self.d_ff            = d_ff
-        self.top_k           = top_k
-        self.overload_thr    = overload_thr
-        self.starvation_thr  = starvation_thr
-        self.mutation_sigma  = mutation_sigma
-        self.vitality_decay  = vitality_decay
-        self.enable_mitosis  = enable_mitosis
+        self.d_model = d_model
+        self.d_ff = d_ff
+        self.top_k = top_k
+        self.overload_thr = overload_thr
+        self.starvation_thr = starvation_thr
+        self.mutation_sigma = mutation_sigma
+        self.vitality_decay = vitality_decay
+        self.enable_mitosis = enable_mitosis
         self.enable_apoptosis = enable_apoptosis
-        self.enable_escape   = enable_escape
+        self.enable_escape = enable_escape
 
-        # ── Pool inicial de experts ──────────────────────────────────────────
-        self.experts: list[Expert] = nn.ModuleList(
+        self.experts: List[Expert] = nn.ModuleList(
             [Expert(d_model, d_ff) for _ in range(n_experts)]
         )
 
-        # ── Módulos das melhorias ────────────────────────────────────────────
-        self.router       = LazyRouter(d_model=d_model, top_k=top_k)
+        self.router = LazyRouter(d_model=d_model, top_k=top_k)
         self.adaptive_cap = AdaptiveCap(base_cap=base_cap, min_cap=min_cap)
-        self.genealogy    = GenealogyTree()
+        self.genealogy = GenealogyTree()
 
-        # Registra os experts iniciais
         self.router.register_initial_experts(self.experts)
         for expert in self.experts:
             self.genealogy.register_birth(expert.id, parent_id=None, step=0)
 
-        # ── Step atual (atualizado no lifecycle) ─────────────────────────────
         self._current_step: int = 0
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Forward
-    # ─────────────────────────────────────────────────────────────────────────
+    def _order_to_expert(self, router_idx: int) -> Optional[Expert]:
+        if not hasattr(self.router, '_order') or router_idx >= len(self.router._order):
+            return None
+        expert_id = self.router._order[router_idx]
+        for expert in self.experts:
+            if expert.id == expert_id:
+                return expert
+        return None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: (batch_size, seq_len, d_model)
-        Returns:
-            out: (batch_size, seq_len, d_model)
-        """
         B, T, D = x.shape
+        assert D == self.d_model
 
-        # Roteia cada token para os top_k experts
-        top_scores, top_idx = self.router(x)  # (B, top_k)
-
-        # Normaliza os scores com softmax
-        weights = F.softmax(top_scores, dim=-1)  # (B, top_k)
+        top_scores, top_idx = self.router(x)
+        weights = F.softmax(top_scores, dim=-1)
 
         out = torch.zeros_like(x)
+        used_experts = set()
 
         for k in range(self.top_k):
-            expert_indices = top_idx[:, k]  # (B,)
+            expert_indices = top_idx[:, k]
             for b in range(B):
-                eid = self._order_to_expert(expert_indices[b].item())
-                if eid is not None:
-                    expert_out = eid(x[b].unsqueeze(0))  # (1, T, D)
+                idx = expert_indices[b].item()
+                expert = self._order_to_expert(idx)
+                if expert is not None:
+                    expert_out = expert(x[b].unsqueeze(0))
                     out[b] += weights[b, k] * expert_out.squeeze(0)
 
-                    # Atualiza vitality: experts usados ganham energia
-                    eid.vitality = min(
-                        1.0,
-                        eid.vitality * self.vitality_decay + (1 - self.vitality_decay)
-                    )
+                    # Vitality sobe menos agressivamente
+                    expert.vitality = min(1.0, expert.vitality * 0.85 + 0.15)
+                    used_experts.add(expert.id)
 
-        # Experts não usados perdem vitality gradualmente
-        used_ids = set(self._order_to_id(top_idx[:, k].tolist()) for k in range(self.top_k))
+        # Decaimento mais forte nos não usados
         for expert in self.experts:
-            if expert.id not in used_ids:
-                expert.vitality *= self.vitality_decay
+            if expert.id not in used_experts:
+                expert.vitality = max(0.0, expert.vitality * self.vitality_decay)
 
         return out
 
-    def _order_to_expert(self, idx: int) -> Optional[Expert]:
-        """Converte índice do router (posição) para o objeto Expert."""
-        order = self.router._order
-        if idx < len(order):
-            eid = order[idx]
-            for e in self.experts:
-                if e.id == eid:
-                    return e
-        return None
-
-    def _order_to_id(self, indices) -> set:
-        order = self.router._order
-        if isinstance(indices, int):
-            indices = [indices]
-        ids = set()
-        for i in indices:
-            if i < len(order):
-                ids.add(order[i])
-        return ids
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Ciclo de vida — chame a cada N steps
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def execute_systemic_lifecycle(
-        self,
-        current_loss: float,
-        step: int,
-    ) -> tuple[list[int], list[int]]:
-        """
-        Executa um ciclo completo de mitose, apoptose e escape topológico.
-
-        Chame a cada N steps durante o treino (ex.: a cada 1.000 steps).
-
-        Args:
-            current_loss: valor do loss nesse step (loss.item())
-            step:         número do step atual
-
-        Returns:
-            dead: lista de IDs de experts removidos
-            born: lista de IDs de experts criados
-        """
+    def execute_systemic_lifecycle(self, current_loss: float = 0.0, step: int = 0) -> Tuple[List[Expert], List[Expert]]:
         self._current_step = step
-        dead: list[int] = []
-        born: list[int] = []
+        dead: List[Expert] = []
+        born: List[Expert] = []
 
-        # ── 1. Cap adaptativo ————————————————────————————————————────————────
-        new_cap = self.adaptive_cap.update(current_loss, len(self.experts))
-        while len(self.experts) > new_cap:
-            victim = min(self.experts, key=lambda e: e.vitality)
-            dead.extend(self._apoptosis(victim, step))
+        # === APOPTOSE ===
+        if self.enable_apoptosis:
+            weak_experts = [e for e in self.experts if e.vitality < self.starvation_thr]
+            dead = weak_experts[:2]  # limita para segurança
 
-        # ── 2. Ciclo biológico ———————————————————————————————————————————————
-        for expert in list(self.experts):
-            if self.enable_mitosis and expert.vitality > self.overload_thr:
-                clone = self._mitosis(expert, step)
-                born.append(clone.id)
+        # Remove mortos (forma correta com ModuleList)
+        for expert in list(dead):
+            if expert in self.experts:   # isso ainda funciona
+                # Encontra índice manualmente
+                for i, e in enumerate(self.experts):
+                    if e is expert:      # compara por identidade (é o mesmo objeto)
+                        if hasattr(self.router, 'on_died'):
+                            self.router.on_died(expert.id)
+                        del self.experts[i]
+                        self.genealogy.register_death(expert.id, step=step)
+                        break
 
-            elif self.enable_apoptosis and expert.vitality < self.starvation_thr:
-                dead.extend(self._apoptosis(expert, step))
+        # === MITOSE ===
+        if self.enable_mitosis and len(self.experts) < self.adaptive_cap.base_cap:
+            strong_experts = [e for e in self.experts if e.vitality > self.overload_thr]
+            for parent in strong_experts[:2]:   # máximo 2 mitoses por step
+                if len(self.experts) >= self.adaptive_cap.base_cap:
+                    break
+                clone = self._mitosis(parent, step)
+                born.append(clone)
 
-        # ── 3. Escape topológico se Φ colapsar ───────────────────────────────
-        if self.enable_escape:
-            phi = self._compute_phi()
-            if phi < COLAPSO_THR:
-                self._categorical_shift()
+        # Registra novos no router
+        for new_expert in born:
+            if hasattr(self.router, 'on_born'):
+                self.router.on_born(new_expert.id, new_expert)
 
-        # ── 4. Atualiza genealogia com vitality atual ────────────────────────
-        for expert in self.experts:
-            self.genealogy.update_vitality(expert.id, expert.vitality)
+        # Escape topológico
+        if self.enable_escape and self._compute_phi() < COLAPSO_THR:
+            self._categorical_shift()
 
         return dead, born
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Mitose assimétrica (Melhoria 2)
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _mitosis(self, parent: Expert, step: int) -> Expert:
-        """
-        Cria um clone do expert-pai.
-        Só o clone muta — o pai é preservado intacto.
-        A mutação é direcional: direção aleatória normalizada × sigma × ||param||.
-        """
         clone = deepcopy(parent)
-        clone.id       = Expert._next_id()
-        clone.vitality = parent.vitality * 0.5  # divide a vitality
+        clone.id = Expert._next_id()
+        clone.vitality = parent.vitality * 0.55
 
         with torch.no_grad():
             for param in clone.parameters():
                 if param.requires_grad:
-                    direction = torch.randn_like(param)
-                    direction = direction / (direction.norm() + 1e-8)
-                    magnitude = self.mutation_sigma * param.data.norm()
-                    param.add_(direction * magnitude)
+                    noise = torch.randn_like(param) * self.mutation_sigma * param.data.norm()
+                    param.add_(noise)
 
-        # Registra no pool, router e genealogia
         self.experts.append(clone)
-        self.router.on_born(clone.id, clone)
-        self.genealogy.register_birth(clone.id, parent_id=parent.id, step=step)
-
+        self.genealogy.register_birth(clone.id, parent.id, step)
         return clone
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Apoptose
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _apoptosis(self, expert: Expert, step: int) -> list[int]:
-        """
-        Remove um expert do pool.
-        Atualiza router e genealogia.
-        """
-        if expert not in self.experts:
-            return []
-        self.experts.remove(expert)
-        self.router.on_died(expert.id)
-        self.genealogy.register_death(expert.id, step=step)
-        del expert
-        return [expert.id] if expert in [expert] else []
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Escape topológico
-    # ─────────────────────────────────────────────────────────────────────────
-
     def _compute_phi(self) -> float:
-        """Calcula a diversidade do ensemble com a métrica MMD."""
         if len(self.experts) < 2:
-            return 1.0  # pool mínimo = não detecta colapso
+            return 1.0
         centroids = torch.stack([e.get_centroid() for e in self.experts])
         return phi_mmd(centroids, subsample=min(64, len(self.experts)))
 
     def _categorical_shift(self) -> None:
-        """
-        Executa um escape topológico quando Φ colapsa.
-        Alterna entre projeção hiperbólica e Fourier para escapar de plateaux.
-        """
-        # Alterna entre os dois modos de escape
-        use_hyperbolic = (self._current_step // 1000) % 2 == 0
-
         with torch.no_grad():
             for expert in self.experts:
                 for param in expert.parameters():
-                    if not param.requires_grad:
-                        continue
-                    if use_hyperbolic:
-                        # Projeção hiperbólica (Poincaré): normaliza para disco unitário
-                        norm  = param.data.norm() + 1e-8
-                        scale = torch.tanh(norm) / norm
-                        param.data.mul_(scale * 0.95)
-                    else:
-                        # Perturbação no domínio de Fourier
-                        f     = torch.fft.rfft(param.data.flatten().float())
-                        noise = torch.randn_like(f.real) * 0.01
-                        f.real.add_(noise)
-                        restored = torch.fft.irfft(f, n=param.data.numel())
-                        param.data.copy_(
-                            restored.reshape(param.data.shape).to(param.data.dtype)
-                        )
+                    if param.requires_grad:
+                        param.data += torch.randn_like(param.data) * 0.02
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Utilitários públicos
-    # ─────────────────────────────────────────────────────────────────────────
+    def print_status(self) -> None:
+        phi = self._compute_phi()
+        print(
+            f"[OuroborosMoE] step={self._current_step:3d} | "
+            f"experts={len(self.experts):2d} | "
+            f"Φ={phi:.4f} | "
+            f"vitality_avg={sum(e.vitality for e in self.experts)/len(self.experts):.3f}"
+        )
 
     @property
     def n_experts(self) -> int:
-        """Número atual de experts no pool."""
         return len(self.experts)
 
-    def print_status(self) -> None:
-        """Imprime o estado atual da camada no terminal."""
-        phi = self._compute_phi()
-        print(
-            f"[OuroborosMoE] step={self._current_step} | "
-            f"experts={self.n_experts} | "
-            f"Φ={phi:.3f} | "
-            f"cap={self.adaptive_cap.base_cap}"
-        )
-
-    def save_genealogy(self, path: str = "genealogy.json") -> None:
-        """Salva a árvore genealógica em JSON."""
-        self.genealogy.save(path)
-
     def __repr__(self) -> str:
-        return (
-            f"OuroborosMoELayer("
-            f"d_model={self.d_model}, "
-            f"n_experts={self.n_experts}, "
-            f"top_k={self.top_k})"
-        )
+        return f"OuroborosMoELayer(d_model={self.d_model}, n_experts={self.n_experts}, top_k={self.top_k})"

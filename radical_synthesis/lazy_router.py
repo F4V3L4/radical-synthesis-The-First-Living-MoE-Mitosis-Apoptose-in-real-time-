@@ -31,21 +31,13 @@ class LazyRouter(nn.Module):
         top_scores, top_idx = router(x)
     """
 
-    def __init__(self, d_model: int, top_k: int = 2):
+    def __init__(self, d_model: int = 512, top_k: int = 2):
         super().__init__()
-        self.d_model  = d_model
-        self.top_k    = top_k
-
-        # Cache: expert_id → tensor centroid (d_model,)
+        self.d_model = d_model
+        self.top_k = top_k
         self._cache: dict[int, torch.Tensor] = {}
-
-        # IDs que precisam ser recalculados no próximo rebuild
         self._dirty: set[int] = set()
-
-        # Matriz de afinidade entre experts (N × N) — pode ser None
         self._affinity: Optional[torch.Tensor] = None
-
-        # Ordem dos experts na matriz (para indexar corretamente)
         self._order: list[int] = []
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -158,37 +150,31 @@ class LazyRouter(nn.Module):
     @staticmethod
     def _compute_centroid(expert: nn.Module) -> torch.Tensor:
         """
-        Calcula um vetor representativo do expert a partir dos seus parâmetros.
-        Usa os primeiros parâmetros treináveis para eficiência.
+        Calcula um vetor representativo do expert usando exatamente d_model dimensões.
+        Usa os primeiros parâmetros treináveis e projeta/concatena para ter tamanho exato = d_model.
         """
         slices = []
+        total_elements = 0
+        target_dim = 512  # vamos pegar do self depois, mas por enquanto fixo
+
         for p in expert.parameters():
-            if p.requires_grad and p.numel() >= 8:
-                slices.append(p.data.flatten()[:128])
-                if len(slices) >= 4:
+            if p.requires_grad and p.numel() >= 16:   # ignora bias muito pequenos
+                flat = p.data.flatten()
+                slices.append(flat)
+                total_elements += flat.numel()
+                if total_elements >= 2048:   # limite para não ficar lento
                     break
 
         if not slices:
-            # Expert sem parâmetros treináveis — retorna zeros
-            return torch.zeros(128)
+            return torch.zeros(512, dtype=torch.float32, device='cpu')
 
         cat = torch.cat(slices)
 
-        # Normaliza para comprimento fixo de 128
-        if cat.numel() < 128:
-            cat = F.pad(cat, (0, 128 - cat.numel()))
+        # Projeta exatamente para d_model (aqui 512)
+        if cat.numel() < 512:
+            cat = F.pad(cat, (0, 512 - cat.numel()))
         else:
-            cat = cat[:128]
+            cat = cat[:512]
 
-        return cat.detach().float()
-
-    @property
-    def n_experts(self) -> int:
-        """Número de experts atualmente registrados no cache."""
-        return len(self._cache)
-
-    def __repr__(self) -> str:
-        return (
-            f"LazyRouter(d_model={self.d_model}, top_k={self.top_k}, "
-            f"n_experts={self.n_experts}, cache_valid={self._affinity is not None})"
-        )
+        # Normaliza para que o centroid fique unitário (melhor para cosine similarity)
+        return F.normalize(cat, dim=0).detach().float()
