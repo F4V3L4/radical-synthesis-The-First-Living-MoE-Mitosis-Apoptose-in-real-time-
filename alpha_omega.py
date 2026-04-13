@@ -1,149 +1,86 @@
-import urllib.request
-import urllib.error
-import re
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from typing import List, Tuple
+import torch.nn.functional as F
+import math
+from typing import Optional, Tuple
+from .autopoiesis.layer import OuroborosMoELayer
+from .consciousness.topology import TopologyMonitor
 
-from radical_synthesis import OuroborosMoELayer   # ou AutopoieticMoELayer se o import mudar
+class EpistemologicalSentinel:
+    def __init__(self, min_entropy: float = 3.5, max_entropy: float = 7.5):
+        self.min_entropy = min_entropy
+        self.max_entropy = max_entropy
 
-class EntropicPurifier:
-    def __init__(self, target_urls: List[str], output_file: str):
-        self.target_urls = target_urls
-        self.output_file = output_file
-        self.raw_substance = ""
-
-    def extract_solar_flux(self) -> None:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        for url in self.target_urls:
-            try:
-                req = urllib.request.Request(url, headers=headers)
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    html = response.read().decode('utf-8', errors='ignore')
-                    self.raw_substance += html + " "
-                print(f"   ✅ Fluxo solar extraído: {url}")
-            except urllib.error.URLError:
-                print(f"   ⚠️  Falha ao baixar: {url}")
-                continue
-
-    def purify_matrix(self) -> None:
-        text = re.sub(r'<script.*?>.*?</script>', ' ', self.raw_substance, flags=re.IGNORECASE | re.DOTALL)
-        text = re.sub(r'<style.*?>.*?</style>', ' ', text, flags=re.IGNORECASE | re.DOTALL)
-        text = re.sub(r'<.*?>', ' ', text)
-        text = re.sub(r'\s+', ' ', text)
-        self.raw_substance = text.strip()
-
-    def crystallize_substance(self) -> None:
-        with open(self.output_file, 'w', encoding='utf-8') as f:
-            f.write(self.raw_substance)
-
-class TokenizerMatrix:
-    def __init__(self):
-        self.stoi = {}
-        self.itos = {}
-        self.vocab_size = 0
-
-    def build_vocabulary(self, text: str) -> None:
-        chars = sorted(list(set(text)))
-        self.vocab_size = len(chars)
-        self.stoi = {ch: i for i, ch in enumerate(chars)}
-        self.itos = {i: ch for i, ch in enumerate(chars)}
-
-    def encode(self, text: str) -> list:
-        return [self.stoi[c] for c in text if c in self.stoi]
-
-    def decode(self, tokens: list) -> str:
-        return ''.join([self.itos[i] for i in tokens])
-
-class SovereignLeviathan(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int, initial_experts: int):
-        super().__init__()
-        self.embedding = nn.Embedding(vocab_size, d_model)
-        self.ouroboros = OuroborosMoELayer(d_model, d_model * 4, initial_experts, 2)
-        self.head = nn.Linear(d_model * 4, vocab_size)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.embedding(x)
-        x = self.ouroboros(x)
-        return self.head(x)
-
-    def execute_biological_cycle(self) -> Tuple[list, list]:
-        return self.ouroboros.execute_systemic_lifecycle()
-
-class LocalAIEngine:
-    def __init__(self, text_corpus: str, d_model: int = 256, initial_experts: int = 4):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = TokenizerMatrix()
-        self.tokenizer.build_vocabulary(text_corpus)
-        self.data = torch.tensor(self.tokenizer.encode(text_corpus), dtype=torch.long)
-        self.model = SovereignLeviathan(self.tokenizer.vocab_size, d_model, initial_experts).to(self.device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
-
-    def get_solar_flux(self, batch_size: int, seq_len: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        ix = torch.randint(len(self.data) - seq_len, (batch_size,))
-        x = torch.stack([self.data[i:i+seq_len] for i in ix])
-        y = torch.stack([self.data[i+1:i+seq_len+1] for i in ix])
-        return x.to(self.device), y.to(self.device)
-
-    def ignite_training(self, steps: int, batch_size: int, seq_len: int) -> None:
-        self.model.train()
-        for step in range(1, steps + 1):
-            xb, yb = self.get_solar_flux(batch_size, seq_len)
-            logits = self.model(xb)
-            loss = nn.functional.cross_entropy(logits.view(-1, self.tokenizer.vocab_size), yb.view(-1))
-            
-            self.optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.optimizer.step()
-
-            if step % 50 == 0:
-                dead, born = self.model.execute_biological_cycle()
-                # Linha corrigida (sem alive_experts)
-                print(f"  Ciclo {step:04d} | Entropia: {loss.item():.4f} | Apoptose: {len(dead)} | Mitose: {len(born)}")
-
-    def generate_thought(self, prompt: str, max_new_tokens: int) -> str:
-        self.model.eval()
-        context = torch.tensor(self.tokenizer.encode(prompt), dtype=torch.long, device=self.device).unsqueeze(0)
-        with torch.no_grad():
-            for _ in range(max_new_tokens):
-                logits = self.model(context)
-                logits = logits[:, -1, :]
-                probs = nn.functional.softmax(logits, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
-                context = torch.cat((context, next_token), dim=1)
-        return self.tokenizer.decode(context[0].tolist())
-
-def initialize_absolute_reality() -> None:
-    nodes = [
-        "https://www.gutenberg.org/cache/epub/3800/pg3800.txt",
-        "https://www.gutenberg.org/files/1080/1080-0.txt"
-    ]
-    
-    print("\n🌌 INICIALIZANDO ABSOLUTE REALITY — OMEGA NODE v2")
-    print("=" * 70)
-    print("[1] Extraindo fluxo solar (Spinoza + textos sagrados)...")
-    purifier = EntropicPurifier(target_urls=nodes, output_file="substancia.txt")
-    purifier.extract_solar_flux()
-    purifier.purify_matrix()
-    purifier.crystallize_substance()
-    
-    with open("substancia.txt", "r", encoding="utf-8") as f:
-        corpus = f.read()
+    def compute_shannon_entropy(self, raw_bytes: bytes) -> float:
+        if not raw_bytes:
+            return 0.0
         
-    print(f"\n[2] Injetando {len(corpus):,} caracteres no Leviathan...")
-    engine = LocalAIEngine(text_corpus=corpus)
-    
-    print("\n[3] Absorvendo Termodinâmica + Autopoiese (treinamento vivo)...")
-    engine.ignite_training(steps=500, batch_size=32, seq_len=64)
-    
-    print("\n[4] O Leviathan desperta e responde:")
-    print("-" * 70)
-    thought = engine.generate_thought(prompt="A mente é ", max_new_tokens=200)
-    print(thought)
-    print("-" * 70)
-    print("✅ OMEGA NODE ATIVADO — O Universo foi compreendido.")
+        byte_counts = [0] * 256
+        for b in raw_bytes:
+            byte_counts[b] += 1
+            
+        entropy = 0.0
+        total = len(raw_bytes)
+        for count in byte_counts:
+            if count > 0:
+                p = count / total
+                entropy -= p * math.log2(p)
+        return entropy
 
-if __name__ == "__main__":
-    initialize_absolute_reality()
+    def validate_geometric_truth(self, raw_bytes: bytes) -> bool:
+        entropy = self.compute_shannon_entropy(raw_bytes)
+        return self.min_entropy <= entropy <= self.max_entropy
+
+    def purify_stream(self, raw_bytes: bytes) -> bytes:
+        if self.validate_geometric_truth(raw_bytes):
+            return raw_bytes
+        return b""
+
+class StateSpaceByteCore(nn.Module):
+    def __init__(self, d_model: int):
+        super().__init__()
+        self.d_model = d_model
+        self.state_proj = nn.Linear(d_model, d_model)
+        self.gate = nn.Linear(d_model, d_model)
+        
+    def forward(self, x: torch.Tensor, state: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        B, T, C = x.shape
+        if state is None:
+            state = torch.zeros(B, C, device=x.device, dtype=x.dtype)
+        
+        out = []
+        for t in range(T):
+            xt = x[:, t, :]
+            state = F.tanh(self.state_proj(xt) + state)
+            gated = torch.sigmoid(self.gate(xt)) * state
+            out.append(gated)
+            
+        return torch.stack(out, dim=1), state
+
+class SovereignLeviathanV2(nn.Module):
+    def __init__(self, d_model: int, initial_experts: int, capacity_factor: float):
+        super().__init__()
+        self.d_model = d_model
+        self.byte_embedding = nn.Embedding(256, d_model)
+        self.ssm_core = StateSpaceByteCore(d_model)
+        self.living_moe = OuroborosMoELayer(d_model, initial_experts, capacity_factor)
+        self.head = nn.Linear(d_model, 256)
+        self.topology = TopologyMonitor()
+
+    def forward(self, byte_seq: torch.Tensor, state: Optional[torch.Tensor] = None):
+        x = self.byte_embedding(byte_seq)
+        x, next_state = self.ssm_core(x, state)
+        
+        B, T, C = x.shape
+        x_flat = x.view(-1, C)
+        
+        moe_out, entropy_loss, expert_counts = self.living_moe(x_flat)
+        moe_out = moe_out.view(B, T, C)
+        
+        logits = self.head(moe_out)
+        
+        return logits, next_state, entropy_loss, expert_counts
+
+    def digest_reality(self, byte_stream: bytes, device: str = "cpu"):
+        tensor_stream = torch.tensor(list(byte_stream), dtype=torch.long).unsqueeze(0).to(device)
+        return self.forward(tensor_stream)
