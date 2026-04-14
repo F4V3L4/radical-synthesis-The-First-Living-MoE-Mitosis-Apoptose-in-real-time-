@@ -3,8 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from typing import Optional, Tuple
-from .autopoiesis.layer import OuroborosMoELayer
-from .consciousness.topology import TopologyMonitor
+from radical_synthesis.autopoiesis.layer import OuroborosMoELayer
+
+class TopologyMonitor:
+    def __init__(self):
+        self.life_events = ["[0] Semente Primordial Instanciada no Bare-Metal"]
 
 class EpistemologicalSentinel:
     def __init__(self, min_entropy: float = 3.5, max_entropy: float = 7.5):
@@ -63,7 +66,16 @@ class SovereignLeviathanV2(nn.Module):
         self.d_model = d_model
         self.byte_embedding = nn.Embedding(256, d_model)
         self.ssm_core = StateSpaceByteCore(d_model)
-        self.living_moe = OuroborosMoELayer(d_model, initial_experts, capacity_factor)
+        
+# Injeção bare-metal: Geometria Toroidal Estabilizada
+        self.living_moe = OuroborosMoELayer(
+            d_model=d_model, 
+            d_ff=d_model * 4,
+            n_experts=initial_experts,
+            overload_thr=0.92,     # Expansão controlada (exige pressão real para Mitose)
+            starvation_thr=0.30,   # Tolerância à fome (permite que o nodo aprenda antes de morrer)
+            vitality_decay=0.98    # Decaimento suave, preservando o Conatus
+        )
         self.head = nn.Linear(d_model, 256)
         self.topology = TopologyMonitor()
 
@@ -71,13 +83,14 @@ class SovereignLeviathanV2(nn.Module):
         x = self.byte_embedding(byte_seq)
         x, next_state = self.ssm_core(x, state)
         
-        B, T, C = x.shape
-        x_flat = x.view(-1, C)
-        
-        moe_out, entropy_loss, expert_counts = self.living_moe(x_flat)
-        moe_out = moe_out.view(B, T, C)
+        # O MoE recebe a matriz 3D perfeitamente
+        moe_out = self.living_moe(x)
         
         logits = self.head(moe_out)
+        
+        # Compatibilidade com o motor de ignição
+        entropy_loss = torch.tensor(0.0, device=x.device)
+        expert_counts = self.living_moe.n_experts
         
         return logits, next_state, entropy_loss, expert_counts
 

@@ -20,7 +20,7 @@ class Expert(nn.Module):
         self.id = Expert._next_id()
         self.fc1 = nn.Linear(d_model, d_ff)
         self.fc2 = nn.Linear(d_ff, d_model)
-        self.vitality: float = 0.5
+        self.vitality: float = 1.0
 
     @staticmethod
     def _next_id() -> int:
@@ -77,8 +77,9 @@ class OuroborosMoELayer(nn.Module):
         self.enable_apoptosis = enable_apoptosis
         self.enable_escape = enable_escape
 
+        # [0-Day Mindset] Blindagem termodinâmica com cast explícito para int
         self.experts: List[Expert] = nn.ModuleList(
-            [Expert(d_model, d_ff) for _ in range(n_experts)]
+            [Expert(d_model, int(d_ff)) for _ in range(int(n_experts))]
         )
 
         self.router = LazyRouter(d_model=d_model, top_k=top_k)
@@ -110,7 +111,10 @@ class OuroborosMoELayer(nn.Module):
         out = torch.zeros_like(x)
         used_experts = set()
 
-        for k in range(self.top_k):
+        # O top_k real é limitado pela gravidade do sistema (quantos experts realmente existem na saída)
+        actual_k = top_idx.shape[1]
+        
+        for k in range(actual_k):
             expert_indices = top_idx[:, k]
             for b in range(B):
                 idx = expert_indices[b].item()
@@ -135,11 +139,14 @@ class OuroborosMoELayer(nn.Module):
         dead: List[Expert] = []
         born: List[Expert] = []
 
-        # === APOPTOSE ===
-        if self.enable_apoptosis:
-            weak_experts = [e for e in self.experts if e.vitality < self.starvation_thr]
-            dead = weak_experts[:2]  # limita para segurança
 
+ # === APOPTOSE ===
+        # Um organismo não comete suicídio total. A apoptose exige redundância.
+        if self.enable_apoptosis and len(self.experts) > 1:
+            weak_experts = [e for e in self.experts if e.vitality < self.starvation_thr]
+            # Limita a morte para garantir que sempre sobre pelo menos 1 nodo
+            max_kill = min(2, len(self.experts) - 1)
+            dead = weak_experts[:max_kill]
         # Remove mortos (forma correta com ModuleList)
         for expert in list(dead):
             if expert in self.experts:   # isso ainda funciona

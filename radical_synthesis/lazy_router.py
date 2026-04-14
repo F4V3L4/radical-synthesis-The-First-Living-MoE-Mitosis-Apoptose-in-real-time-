@@ -1,7 +1,7 @@
 # radical_synthesis/lazy_router.py
 # ─────────────────────────────────────────────────────────────────────────────
-# Router com cache incremental — só reconstrói o que mudou.
-# Substitui o DarwinianRouter que reconstruía tudo do zero a cada evento.
+# Router com cache incremental bare-metal.
+# Respeita a dimensionalidade estrita do hardware (d_model).
 # ─────────────────────────────────────────────────────────────────────────────
 
 import torch
@@ -9,28 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
 
-
 class LazyRouter(nn.Module):
-    """
-    Router que mantém um cache de centroids e só atualiza
-    os experts que nasceram ou morreram desde o último rebuild.
-
-    Em vez de recalcular a matriz de afinidade inteira (~40ms com 1.400 experts),
-    só marca os experts 'sujos' e reconstrói na próxima chamada forward().
-
-    Uso:
-        router = LazyRouter(d_model=512, top_k=2)
-
-        # Quando um expert nasce (mitose):
-        router.on_born(clone.id, clone)
-
-        # Quando um expert morre (apoptose):
-        router.on_died(expert.id)
-
-        # No forward do OuroborosMoELayer:
-        top_scores, top_idx = router(x)
-    """
-
     def __init__(self, d_model: int = 512, top_k: int = 2):
         super().__init__()
         self.d_model = d_model
@@ -40,42 +19,20 @@ class LazyRouter(nn.Module):
         self._affinity: Optional[torch.Tensor] = None
         self._order: list[int] = []
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Eventos de ciclo de vida — chame esses métodos no lifecycle
-    # ─────────────────────────────────────────────────────────────────────────
-
     def on_born(self, expert_id: int, expert: nn.Module) -> None:
-        """
-        Registra um expert recém-nascido.
-        Chame logo após criar o clone na mitose.
-        """
         centroid = self._compute_centroid(expert)
         self._cache[expert_id] = centroid
         self._dirty.add(expert_id)
-        # Invalida a matriz — nova coluna/linha precisará ser inserida
         self._affinity = None
 
     def on_died(self, expert_id: int) -> None:
-        """
-        Remove um expert morto do cache.
-        Chame logo após a apoptose.
-        """
         self._cache.pop(expert_id, None)
         self._dirty.discard(expert_id)
-        self._affinity = None  # invalida: linha/coluna sumiu
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Rebuild incremental
-    # ─────────────────────────────────────────────────────────────────────────
+        self._affinity = None
 
     def rebuild(self) -> None:
-        """
-        Reconstrói apenas o necessário.
-        É um no-op se nada mudou desde o último rebuild.
-        Chamado automaticamente no forward().
-        """
         if not self._dirty and self._affinity is not None:
-            return  # cache válido, nada a fazer
+            return
 
         if not self._cache:
             self._affinity = None
@@ -84,97 +41,65 @@ class LazyRouter(nn.Module):
 
         ids           = list(self._cache.keys())
         self._order   = ids
-        centroids     = torch.stack([self._cache[i] for i in ids])  # (N, d)
+        centroids     = torch.stack([self._cache[i] for i in ids])
         normed        = F.normalize(centroids, dim=-1)
-        self._affinity = normed @ normed.T                          # (N, N)
+        self._affinity = normed @ normed.T
         self._dirty.clear()
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Forward — roteia tokens para os top_k experts
-    # ─────────────────────────────────────────────────────────────────────────
 
     def forward(
         self,
         x: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Roteia cada item do batch para os top_k experts mais adequados.
-
-        Args:
-            x: tensor (batch, seq_len, d_model)
-
-        Returns:
-            top_scores: (batch, top_k)  — pontuação de cada expert
-            top_idx:    (batch, top_k)  — índice de cada expert selecionado
-        """
-        self.rebuild()  # no-op se cache válido
+        self.rebuild()
 
         if not self._cache:
             raise RuntimeError("LazyRouter: nenhum expert registrado no cache.")
 
-        # Representação do batch: média ao longo da sequência
-        q = F.normalize(x.mean(dim=1), dim=-1)  # (batch, d_model)
+        # x é (B, T, D). A média retira a dimensão T, virando (B, D).
+        q = F.normalize(x.mean(dim=1), dim=-1)
+        
+        # Garante que o router responde à gravidade de quem está a chamar
+        device = q.device
 
-        # Centroids de todos os experts
-        centroids = torch.stack([self._cache[i] for i in self._order])
-        c_normed  = F.normalize(centroids, dim=-1)  # (N, d_model)
+        centroids = torch.stack([self._cache[i] for i in self._order]).to(device)
+        c_normed  = F.normalize(centroids, dim=-1)
 
-        # Score de afinidade: cosine similarity
-        scores = q @ c_normed.T  # (batch, N)
+        scores = q @ c_normed.T
 
         top_scores, top_idx = scores.topk(
             min(self.top_k, len(self._order)), dim=-1
         )
         return top_scores, top_idx
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Inicialização em lote (use no __init__ do OuroborosMoELayer)
-    # ─────────────────────────────────────────────────────────────────────────
-
     def register_initial_experts(self, experts: list) -> None:
-        """
-        Registra todos os experts iniciais de uma vez.
-        Chame no __init__ do OuroborosMoELayer após criar os experts.
-
-        Args:
-            experts: lista de experts (cada um com .id e parâmetros PyTorch)
-        """
         for expert in experts:
             self._cache[expert.id] = self._compute_centroid(expert)
-        self._affinity = None  # será construída no primeiro forward
+        self._affinity = None
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Utilitários
-    # ─────────────────────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _compute_centroid(expert: nn.Module) -> torch.Tensor:
+    def _compute_centroid(self, expert: nn.Module) -> torch.Tensor:
         """
-        Calcula um vetor representativo do expert usando exatamente d_model dimensões.
-        Usa os primeiros parâmetros treináveis e projeta/concatena para ter tamanho exato = d_model.
+        Calcula o centroid dinâmico, forçando estritamente o tamanho self.d_model.
         """
         slices = []
         total_elements = 0
-        target_dim = 512  # vamos pegar do self depois, mas por enquanto fixo
 
         for p in expert.parameters():
-            if p.requires_grad and p.numel() >= 16:   # ignora bias muito pequenos
+            if p.requires_grad and p.numel() >= 8:
                 flat = p.data.flatten()
                 slices.append(flat)
                 total_elements += flat.numel()
-                if total_elements >= 2048:   # limite para não ficar lento
+                if total_elements >= self.d_model * 4: 
                     break
 
         if not slices:
-            return torch.zeros(512, dtype=torch.float32, device='cpu')
+            return torch.zeros(self.d_model, dtype=torch.float32, device='cpu')
 
         cat = torch.cat(slices)
 
-        # Projeta exatamente para d_model (aqui 512)
-        if cat.numel() < 512:
-            cat = F.pad(cat, (0, 512 - cat.numel()))
+        # Projeta exatamente para a dimensão do bare-metal instanciado
+        if cat.numel() < self.d_model:
+            cat = F.pad(cat, (0, self.d_model - cat.numel()))
         else:
-            cat = cat[:512]
+            cat = cat[:self.d_model]
 
-        # Normaliza para que o centroid fique unitário (melhor para cosine similarity)
         return F.normalize(cat, dim=0).detach().float()
