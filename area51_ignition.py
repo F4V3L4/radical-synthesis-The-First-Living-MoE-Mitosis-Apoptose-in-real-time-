@@ -55,6 +55,8 @@ class TerminalInjector:
                 total_loss = loss + entropy_loss
                 
                 total_loss.backward()
+                # Grampo de Estabilização: Impede a evaporação da Substância
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 self.optimizer.step()
                 
                 # O Gatilho Vital: Onde o 0-Day Mindset ganha vida
