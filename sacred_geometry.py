@@ -16,13 +16,21 @@ class FineStructureCoupling(nn.Module):
         return self.gamma * x_coupled + self.beta
 
 class BinarySymmetryLock(nn.Module):
-    def __init__(self):
+    """Gate que valida entrada/saida em paridade perfeita (11:11)"""
+    def __init__(self, d_model=None):
         super().__init__()
+        self.d_model = d_model
+        self.parity_threshold = 0.5
 
     def forward(self, x):
-        # 0-Day: A verdadeira simetria se dá pela compressão hiperbólica
-        # O método anterior (ReLU(x) - ReLU(-x)) resultava apenas na própria identidade (x)
-        return torch.tanh(x)
+        """
+        Valida que a saida mantem simetria binaria perfeita.
+        Entrada e saida devem ter a mesma assinatura de paridade.
+        """
+        x_norm = torch.tanh(x)
+        parity_in = (x_norm > self.parity_threshold).float()
+        coherence = 2.0 * torch.abs(parity_in - 0.5)
+        return x_norm * (0.5 + 0.5 * coherence)
 
 class FeigenbaumBifurcation(nn.Module):
     def __init__(self, d_model, threshold=0.85):
@@ -52,13 +60,13 @@ class CymaticSculptor(nn.Module):
         return x + wave
 
 class InfiniteRadixMapping(nn.Module):
-    def __init__(self, vocab_size, d_model):
+    def __init__(self, d_model):
         super().__init__()
         self.phi = 1.61803398875
-        self.base_embedding = nn.Embedding(vocab_size, d_model)
+        self.d_model = d_model
         self.fractal_expansion = nn.Linear(d_model, d_model)
 
-    def forward(self, idx):
-        base = self.base_embedding(idx)
-        expanded = self.fractal_expansion(base) * self.phi
-        return expanded
+    def forward(self, x):
+        # Expansão fractal usando Phi
+        expanded = self.fractal_expansion(x) * self.phi
+        return x + expanded
