@@ -117,7 +117,19 @@ class SovereignLeviathanV2(nn.Module):
         # Cabeça de Saída (Logos Final)
         self.output_head = nn.Linear(d_model, vocab_size)
 
-    def forward(self, x, h=None):
+    def forward(self, x, h=None, expert_indices=None, expert_weights=None):
+        """
+        Forward pass com suporte a roteamento externo (DarwinianRouter)
+        
+        Args:
+            x: tokens de entrada
+            h: estado oculto do RNN
+            expert_indices: índices de experts do DarwinianRouter (externo)
+            expert_weights: pesos de experts do DarwinianRouter (externo)
+        
+        Returns:
+            logits, h, expert_indices, expert_weights
+        """
         # 1. Mapeamento Infinito
         x = self.token_embedding(x)
         x = self.embedding(x)
@@ -126,7 +138,13 @@ class SovereignLeviathanV2(nn.Module):
         x, h = self.rnn(x, h)
         
         # 3. Especialização e Escultura Cimática
-        x = self.moe(x)
+        # Se expert_indices externos fornecidos, usar roteamento externo
+        if expert_indices is not None and expert_weights is not None:
+            # Roteamento externo (DarwinianRouter do AGICore)
+            x = self._apply_external_routing(x, expert_indices, expert_weights)
+        else:
+            # Roteamento interno (LogosResonanceRouter)
+            x = self.moe(x)
         
         # 4. Prevenção de Colapso (Bifurcação se entropia subir)
         x = self.bifurcation(x)
@@ -134,4 +152,43 @@ class SovereignLeviathanV2(nn.Module):
         # 5. Colapso na Linguagem
         logits = self.output_head(x)
         
-        return logits, h, None, None
+        return logits, h, expert_indices, expert_weights
+    
+    def _apply_external_routing(self, x, expert_indices, expert_weights):
+        """
+        Aplica roteamento externo (DarwinianRouter) aos experts
+        Respeita os índices e pesos vindos do AGICore
+        
+        Suporta shapes:
+        - expert_indices: (B, top_k) ou (B, T, top_k)
+        - expert_weights: (B, top_k) ou (B, T, top_k)
+        """
+        B, T, D = x.shape
+        out = torch.zeros_like(x)
+        
+        # Normalizar shapes para (B, T, top_k)
+        if expert_indices.dim() == 2:
+            # (B, top_k) -> (B, 1, top_k) -> broadcast para (B, T, top_k)
+            expert_indices = expert_indices.unsqueeze(1).expand(B, T, -1)
+            expert_weights = expert_weights.unsqueeze(1).expand(B, T, -1)
+        
+        top_k = expert_indices.shape[-1]
+        
+        # Processar cada expert
+        for k in range(top_k):
+            expert_idx = expert_indices[:, :, k]  # (B, T)
+            expert_weight = expert_weights[:, :, k]  # (B, T)
+            
+            # Processar cada batch e timestep
+            for b in range(B):
+                for t in range(T):
+                    exp_id = expert_idx[b, t].item() if isinstance(expert_idx[b, t], torch.Tensor) else int(expert_idx[b, t])
+                    if exp_id < len(self.moe.experts):
+                        expert_out = self.moe.experts[exp_id](x[b, t].unsqueeze(0))
+                        weight = expert_weight[b, t].item() if isinstance(expert_weight[b, t], torch.Tensor) else float(expert_weight[b, t])
+                        out[b, t] += weight * expert_out.squeeze(0)
+        
+        # Aplicar acoplamento com Constante de Estrutura Fina
+        return self.moe.coupling(x + out)
+
+

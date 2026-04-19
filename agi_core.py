@@ -306,16 +306,22 @@ class AGICore(nn.Module):
             weights, indices = self.router(x)
         return weights, indices
     
-    def process(self, tokens: torch.Tensor, expert_indices: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def process(self, tokens: torch.Tensor, expert_indices: Optional[torch.Tensor] = None, 
+                expert_weights: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
-        Camada de Processamento: Forward pass do core
+        Camada de Processamento: Forward pass do core com roteamento externo
+        
+        Args:
+            tokens: tensor de tokens
+            expert_indices: índices de experts do DarwinianRouter
+            expert_weights: pesos de experts do DarwinianRouter
         
         Returns:
             logits
         """
         with torch.no_grad():
-            # O core já tem roteamento interno, não precisa passar expert_indices
-            logits, _, _, _ = self.core(tokens, None)
+            # Passar roteamento externo ao core
+            logits, _, _, _ = self.core(tokens, None, expert_indices, expert_weights)
         return logits
     
     def compute_semantic_divergence(self, response: str, technical_data: str) -> float:
@@ -375,7 +381,7 @@ class AGICore(nn.Module):
         # Re-processar com ajuste de atenção
         with torch.no_grad():
             # Aumentar peso dos tokens técnicos
-            logits = self.process(tokens[:, -256:], expert_indices)
+            logits = self.process(tokens[:, -256:], expert_indices, expert_weights)
             
             # Penalizar tokens que divergem do contexto técnico
             technical_tokens = tokenizer.encode(technical_data)
@@ -400,7 +406,7 @@ class AGICore(nn.Module):
                     torch.tensor([[next_token]], device=self.device)
                 ], dim=1)
                 
-                logits = self.process(tokens[:, -256:], expert_indices)
+                logits = self.process(tokens[:, -256:], expert_indices, expert_weights)
             
             corrected_response = tokenizer.decode(response_tokens)
         
@@ -482,7 +488,7 @@ class AGICore(nn.Module):
         winner_vitality = self.memory.genealogy.get(winner_expert, {}).get('vitality', 1.0)
         
         # 5. PROCESSAMENTO
-        logits = self.process(token_tensor[:, -256:], expert_indices)
+        logits = self.process(token_tensor[:, -256:], expert_indices, expert_weights)
         
         # 6. GERAÇÃO DE RESPOSTA
         response_tokens = []
@@ -502,7 +508,7 @@ class AGICore(nn.Module):
                     torch.tensor([[next_token]], device=self.device)
                 ], dim=1)
                 
-                logits = self.process(token_tensor[:, -256:], expert_indices)
+                logits = self.process(token_tensor[:, -256:], expert_indices, expert_weights)
         
         response = tokenizer.decode(response_tokens)
         
