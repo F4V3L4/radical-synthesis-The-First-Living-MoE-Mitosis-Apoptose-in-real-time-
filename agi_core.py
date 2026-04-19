@@ -23,6 +23,9 @@ from radical_synthesis.perception.vector_retina import VectorRetinaV2
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
+from radical_synthesis.primordial_laws_tier2 import (
+    PlanetaryGrid, Amplituedro, SimultaneityProcessor, QuantumEntanglement, StrangeAttractor
+)
 
 DIGERIDO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'digerido')
 
@@ -219,6 +222,35 @@ class AGICore(nn.Module):
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
+        
+        # ===== TIER 1: LEIS PRIMORDIAIS =====
+        # 1. HarmonicEncoder (Código 144)
+        self.harmonic = HarmonicEncoder(d_model=d_model, frequency=144.0, device=str(device))
+        
+        # 2. QuantumSuperposition (Lei da Superposição)
+        self.quantum = QuantumSuperposition(num_states=8, d_model=d_model, device=str(device))
+        
+        # 3. HyperbolicEmbedding (Geometria Hiperbólica)
+        self.hyperbolic = HyperbolicEmbedding(d_model=d_model, curvature=-1.0, device=str(device))
+        
+        # 4. SynchronicityDetector (Lei da Sincronicidade)
+        self.synchronicity = SynchronicityDetector(num_experts=num_experts, d_model=d_model, device=str(device))
+        
+        # ===== TIER 2: LEIS PRIMORDIAIS =====
+        # 5. PlanetaryGrid (Grade Harmônica Planetária)
+        self.planetary_grid = PlanetaryGrid(num_experts=num_experts, d_model=d_model, device=str(device))
+        
+        # 6. Amplituedro (Otimização de Caminhos)
+        self.amplituedro = Amplituedro(num_experts=num_experts, d_model=d_model, device=str(device))
+        
+        # 7. SimultaneityProcessor (Lei da Simultaneidade)
+        self.simultaneity = SimultaneityProcessor(num_timelines=4, d_model=d_model, device=str(device))
+        
+        # 8. QuantumEntanglement (Emaranhamento Quântico)
+        self.entanglement = QuantumEntanglement(num_experts=num_experts, d_model=d_model, device=str(device))
+        
+        # 9. StrangeAttractor (Atratores Estranhos)
+        self.attractor = StrangeAttractor(num_experts=num_experts, d_model=d_model, device=str(device))
         
         # Parâmetros de autocrítica
         self.entropy_threshold = 0.3
@@ -479,6 +511,80 @@ class AGICore(nn.Module):
             'winner_vitality': winner_vitality
         }
     
+
+    def apply_primordial_laws(self, x: torch.Tensor, expert_indices: torch.Tensor, time: float = 0.1) -> torch.Tensor:
+        """
+        Aplica todas as 9 Leis Primordiais (Tier 1+2) ao tensor de entrada
+        
+        Pipeline:
+        TIER 1:
+        1. HarmonicEncoder (Código 144) - Sincronização harmônica
+        2. QuantumSuperposition - Superposição de estados
+        3. HyperbolicEmbedding - Geometria hiperbólica
+        4. SynchronicityDetector - Detecção de sincronicidade
+        
+        TIER 2:
+        5. PlanetaryGrid - Grade harmônica planetária
+        6. Amplituedro - Otimização de caminhos
+        7. SimultaneityProcessor - Processamento simultâneo
+        8. QuantumEntanglement - Emaranhamento quântico
+        9. StrangeAttractor - Atratores estranhos
+        """
+        with torch.no_grad():
+            # TIER 1
+            # 1. HarmonicEncoder
+            x = self.harmonic(x, time=time)
+            
+            # 2. QuantumSuperposition (em representação plana)
+            if x.dim() == 3:
+                x_flat = x[:, 0, :]  # Pegar primeiro token
+                x_quantum = self.quantum(x_flat)
+                # Reshape de volta
+                x = x_quantum.unsqueeze(1).expand(-1, x.shape[1], -1)
+            
+            # 3. HyperbolicEmbedding
+            x = self.hyperbolic(x)
+            
+            # 4. SynchronicityDetector (se temos expert_indices)
+            if expert_indices.numel() > 0:
+                expert_acts = torch.randn(x.shape[0], self.num_experts, device=self.device)
+                _, _ = self.synchronicity(expert_acts)
+            
+            # TIER 2
+            # 5. PlanetaryGrid
+            if expert_indices.numel() > 0:
+                expert_acts = torch.randn(x.shape[0], self.num_experts, device=self.device)
+                x_sync = self.planetary_grid(expert_acts, time=time)
+                # Modular com sincronização
+                x = x * (1.0 + 0.05 * x_sync.unsqueeze(-1))
+            
+            # 6. Amplituedro (otimizar caminho)
+            if expert_indices.numel() > 0 and expert_indices.dim() >= 2:
+                expert_weights = torch.softmax(torch.randn(x.shape[0], 3, device=self.device), dim=1)
+                x_optimized, _ = self.amplituedro(expert_indices[:, :3], expert_weights)
+                # Combinar com entrada
+                x = x + 0.1 * x_optimized.unsqueeze(1)
+            
+            # 7. SimultaneityProcessor (processar timelines)
+            x_flat = x[:, 0, :]
+            timelines, x_fused = self.simultaneity(x_flat)
+            x = x + 0.05 * x_fused.unsqueeze(1)
+            
+            # 8. QuantumEntanglement
+            if x.dim() == 3 and x.shape[1] >= 8:
+                expert_states = x[:, :8, :]
+                x_entangled, _ = self.entanglement(expert_states)
+                x[:, :8, :] = x_entangled
+            
+            # 9. StrangeAttractor
+            if expert_indices.numel() > 0:
+                expert_acts = torch.randn(x.shape[0], self.num_experts, device=self.device)
+                x_attracted, _ = self.attractor(expert_acts)
+                # Modular com atração
+                x = x * (1.0 + 0.02 * x_attracted.unsqueeze(-1))
+        
+        return x
+
     def get_stats(self) -> Dict:
         """Retorna estatísticas da AGI"""
         return {
