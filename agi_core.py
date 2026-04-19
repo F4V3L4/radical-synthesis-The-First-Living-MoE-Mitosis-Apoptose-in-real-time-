@@ -20,6 +20,9 @@ from typing import Tuple, Dict, List, Optional
 from alpha_omega import SovereignLeviathanV2
 from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.perception.vector_retina import VectorRetinaV2
+from radical_synthesis.primordial_laws import (
+    HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
+)
 
 DIGERIDO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'digerido')
 
