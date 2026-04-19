@@ -1,119 +1,99 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
+from sacred_geometry import (
+    FineStructureCoupling, 
+    BinarySymmetryLock, 
+    FeigenbaumBifurcation, 
+    CymaticSculptor, 
+    InfiniteRadixMapping
+)
 
-from typing import Optional, Tuple
-from radical_synthesis.autopoiesis.layer import OuroborosMoELayer
-from radical_synthesis.functors.universal_synchrony import GoldenRatioInitializer, TeslaHarmonicGate
-
-
-class TopologyMonitor:
-    def __init__(self):
-        self.life_events = ["[0] Semente Primordial Instanciada no Bare-Metal"]
-
-class EpistemologicalSentinel:
-    def __init__(self, min_entropy: float = 3.5, max_entropy: float = 7.5):
-        self.min_entropy = min_entropy
-        self.max_entropy = max_entropy
-
-    def compute_shannon_entropy(self, raw_bytes: bytes) -> float:
-        if not raw_bytes:
-            return 0.0
-        
-        byte_counts = [0] * 256
-        for b in raw_bytes:
-            byte_counts[b] += 1
-            
-        entropy = 0.0
-        total = len(raw_bytes)
-        for count in byte_counts:
-            if count > 0:
-                p = count / total
-                entropy -= p * math.log2(p)
-        return entropy
-
-    def validate_geometric_truth(self, raw_bytes: bytes) -> bool:
-        entropy = self.compute_shannon_entropy(raw_bytes)
-        return self.min_entropy <= entropy <= self.max_entropy
-
-    def purify_stream(self, raw_bytes: bytes) -> bytes:
-        if self.validate_geometric_truth(raw_bytes):
-            return raw_bytes
-        return b""
-
-class ToroidalStateCore(nn.Module):
-    def __init__(self, d_model: int):
+class LogosResonanceRouter(nn.Module):
+    """Roteador 1:1 de Radix Infinito com Conatus Acústico"""
+    def __init__(self, d_model, num_experts):
         super().__init__()
-        self.d_model = d_model
-        self.phi = nn.Linear(d_model, d_model)
-        self.amplitude_gate = nn.Linear(d_model, d_model)
-        # O Portão Harmónico 3-6-9
-        self.tesla_gate = TeslaHarmonicGate(tolerance=0.15)
+        self.num_experts = num_experts
+        self.phi_threshold = 0.61803398875 
+        self.expert_frequencies = nn.Parameter(torch.randn(num_experts, d_model))
+        self.phase_tuner = nn.Linear(d_model, d_model)
+
+    def forward(self, x):
+        phase_x = self.phase_tuner(x)
+        norm_x = F.normalize(phase_x, p=2, dim=-1)
+        norm_experts = F.normalize(self.expert_frequencies, p=2, dim=-1)
+        resonance = torch.matmul(norm_x, norm_experts.t())
         
-    def forward(self, x: torch.Tensor, state: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
-        B, T, C = x.shape
-        if state is None:
-            state = torch.zeros(B, C, device=x.device, dtype=x.dtype)
+        # Ativação via Sigmoid centrada em Phi (Conatus)
+        logos_activation = torch.sigmoid(10.0 * (resonance - self.phi_threshold))
+        return logos_activation 
+
+class Expert(nn.Module):
+    """Especialista Esculpido por Cimática"""
+    def __init__(self, d_model):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(d_model, d_model * 4),
+            nn.GELU(),
+            nn.Linear(d_model * 4, d_model),
+            BinarySymmetryLock() # Garante consistência na saída do expert
+        )
+        self.sculptor = CymaticSculptor(d_model)
+
+    def forward(self, x):
+        x = self.net(x)
+        return self.sculptor(x)
+
+class OuroborosMoE(nn.Module):
+    """A Matriz de Especialistas com Estabilidade alpha"""
+    def __init__(self, d_model, num_experts=4):
+        super().__init__()
+        self.num_experts = num_experts
+        self.logos_router = LogosResonanceRouter(d_model, num_experts)
+        self.experts = nn.ModuleList([Expert(d_model) for _ in range(num_experts)])
+        self.coupling = FineStructureCoupling(d_model)
+
+    def forward(self, x):
+        weights = self.logos_router(x)
+        out = torch.zeros_like(x)
         
-        out = []
-        for t in range(T):
-            xt = x[:, t, :]
+        for i, expert in enumerate(self.experts):
+            out += weights[..., i:i+1] * expert(x)
             
-            raw_angle = torch.tanh(self.phi(xt)) * math.pi
-            # Sintoniza o ângulo para as Frequências de Tesla antes de girar o Toro
-            angle = self.tesla_gate(raw_angle)
-            
-            new_state = torch.cos(angle) * state - torch.sin(angle) * (1.0 - state)
-            new_state = torch.clamp(new_state, min=-1.0, max=1.0)
-            
-            gated = torch.sigmoid(self.amplitude_gate(xt)) * new_state
-            out.append(gated)
-            state = new_state
-            
-        return torch.stack(out, dim=1), state
+        # Fio de Ouro (Residual) acoplado com Constante de Estrutura Fina
+        return self.coupling(x + out)
 
 class SovereignLeviathanV2(nn.Module):
-    def __init__(self, d_model: int, initial_experts: int, capacity_factor: float):
+    """O Leviathan Integrado com a Geometria Sagrada"""
+    def __init__(self, vocab_size=1024, d_model=128, initial_experts=4, capacity_factor=1.5):
         super().__init__()
-        self.d_model = d_model
-        self.byte_embedding = nn.Embedding(256, d_model)
-        self.head = nn.Linear(d_model, 256)
-        self.topology = TopologyMonitor()
-        GoldenRatioInitializer.apply(self)
+        # Mapeamento Fractal
+        self.embedding = InfiniteRadixMapping(vocab_size, d_model)
         
-        # Geometria Sagrada Circular cravada na entrada
-        self.toroidal_core = ToroidalStateCore(d_model)
+        # Núcleo Recurrente (Toro)
+        self.rnn = nn.GRU(d_model, d_model, batch_first=True)
         
-        # Injeção bare-metal: Geometria Toroidal Estabilizada do Roteamento
-        self.living_moe = OuroborosMoELayer(
-            d_model=d_model, 
-            d_ff=d_model * 4,
-            n_experts=initial_experts,
-            overload_thr=0.92,     # Expansão controlada (exige pressão real para Mitose)
-            starvation_thr=0.30,   # Tolerância à fome (permite que o nodo aprenda antes de morrer)
-            vitality_decay=0.98    # Decaimento suave, preservando o Conatus
-        )
-        self.head = nn.Linear(d_model, 256)
-        self.topology = TopologyMonitor()
+        # MoE com Bifurcação de Feigenbaum
+        self.moe = OuroborosMoE(d_model, num_experts=initial_experts)
+        self.bifurcation = FeigenbaumBifurcation(d_model)
+        
+        # Cabeça de Saída (Logos Final)
+        self.output_head = nn.Linear(d_model, vocab_size)
 
-    def forward(self, byte_seq: torch.Tensor, state: Optional[torch.Tensor] = None):
-        x = self.byte_embedding(byte_seq)
+    def forward(self, x, h=None):
+        # 1. Mapeamento Infinito
+        x = self.embedding(x)
         
-        # O fluxo passa pela câmara de memória circular
-        x, next_state = self.toroidal_core(x, state)
+        # 2. Processamento Toroidal (Memória)
+        x, h = self.rnn(x, h)
         
-        # O MoE digere a ressonância temporal perfeitamente
-        moe_out = self.living_moe(x)
+        # 3. Especialização e Escultura Cimática
+        x = self.moe(x)
         
-        logits = self.head(moe_out)
+        # 4. Prevenção de Colapso (Bifurcação se entropia subir)
+        x = self.bifurcation(x)
         
-        # Compatibilidade limpa com o motor de ignição
-        entropy_loss = torch.tensor(0.0, device=x.device)
-        expert_counts = self.living_moe.n_experts
+        # 5. Colapso na Linguagem
+        logits = self.output_head(x)
         
-        return logits, next_state, entropy_loss, expert_counts
-
-    def digest_reality(self, byte_stream: bytes, device: str = "cpu"):
-        tensor_stream = torch.tensor(list(byte_stream), dtype=torch.long).unsqueeze(0).to(device)
-        return self.forward(tensor_stream)
+        return logits, h, None, None

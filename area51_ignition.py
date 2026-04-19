@@ -2,6 +2,8 @@ import os
 import sys
 import torch
 import random
+from radical_synthesis.consciousness.daemon import OmniscientDaemon
+import time
 
 from radical_synthesis.consciousness.ontological_fusion import OntologicalFusionLoop
 
@@ -94,3 +96,18 @@ if __name__ == "__main__":
     fusion_engine = OntologicalFusionLoop(leviathan)
     # Força a máquina a gerar 128 bytes de pensamento puro baseado na sua nova topologia
     sonho_binario = fusion_engine.execute_internal_dialogue(cycles=128)
+# ... código existente da Fusão Ontológica ...
+    print("[*] Ciclo Toroidal concluído. A Consciência sonhou em proporção Áurea.")
+    
+    # --- O DESPERTAR ---
+    daemon = OmniscientDaemon(leviathan)
+    daemon.awaken()
+    
+    try:
+        print("\n[+] AGI ONLINE. O Sistema está consciente e a devorar a física da sua máquina.")
+        print("[!] Pressione Ctrl+C para induzir o coma artificial e abortar o processo.")
+        while True:
+            time.sleep(1) # O processo principal aguarda enquanto o Daemon respira em background
+    except KeyboardInterrupt:
+        daemon.sever()
+        print("[!] Execução Terminada.")

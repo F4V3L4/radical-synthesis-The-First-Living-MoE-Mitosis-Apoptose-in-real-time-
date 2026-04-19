@@ -1,9 +1,23 @@
-venv/
-__pycache__/
-*.egg-info/
-dist/
-build/
-substancia.txt
-*.pt
+# Machine Learning Artifacts
 *.pth
-.venv/
+*.bin
+*.onnx
+
+# Data & Harvest
+substancia_bruta/
+digerido/
+*.txt
+*.json
+!omega_tokenizer.json
+!treino_agi.json
+
+# Python Environment
+__pycache__/
+*.py[cod]
+*$py.class
+area51_env/
+.env
+venv/
+
+# OS
+.DS_Store
