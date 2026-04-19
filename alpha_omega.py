@@ -9,45 +9,6 @@ from sacred_geometry import (
     InfiniteRadixMapping
 )
 
-class LogosResonanceRouter(nn.Module):
-    """Roteador 1:1 de Radix Infinito com Conatus Acústico"""
-    def __init__(self, d_model, num_experts, top_k=2):
-        super().__init__()
-        self.num_experts = num_experts
-        self.top_k = top_k
-        self.phi_threshold = 0.61803398875 
-        self.expert_frequencies = nn.Parameter(torch.randn(num_experts, d_model))
-        self.phase_tuner = nn.Linear(d_model, d_model)
-        self.genealogy_map = {}  # Rastreia genealogia de experts
-
-    def forward(self, x):
-        """Retorna (weights, indices) compatível com layer.py"""
-        B, T, D = x.shape
-        
-        # Reshape para processamento
-        x_flat = x.reshape(-1, D)  # (B*T, D)
-        
-        phase_x = self.phase_tuner(x_flat)
-        norm_x = F.normalize(phase_x, p=2, dim=-1)
-        norm_experts = F.normalize(self.expert_frequencies, p=2, dim=-1)
-        resonance = torch.matmul(norm_x, norm_experts.t())  # (B*T, num_experts)
-        
-        # Ativação via Sigmoid centrada em Phi (Conatus)
-        logos_activation = torch.sigmoid(10.0 * (resonance - self.phi_threshold))
-        
-        # Top-k seleção (compatível com layer.py)
-        top_scores, top_indices = torch.topk(logos_activation, self.top_k, dim=-1)
-        
-        # Reshape de volta para (B, T, top_k)
-        top_scores = top_scores.view(B, T, self.top_k)
-        top_indices = top_indices.view(B, T, self.top_k)
-        
-        return top_scores, top_indices
-    
-    def register_genealogy(self, expert_id, parent_id=None):
-        """Registra genealogia de expert"""
-        self.genealogy_map[expert_id] = parent_id 
-
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática"""
     def __init__(self, d_model):
@@ -70,23 +31,46 @@ class OuroborosMoE(nn.Module):
         super().__init__()
         self.num_experts = num_experts
         self.top_k = top_k
-        self.logos_router = LogosResonanceRouter(d_model, num_experts, top_k=top_k)
         self.experts = nn.ModuleList([Expert(d_model) for _ in range(num_experts)])
         self.coupling = FineStructureCoupling(d_model)
 
-    def forward(self, x):
+    def forward(self, x, expert_indices=None, expert_weights=None):
+        """
+        Forward com roteamento EXÓGENO obrigatório (DarwinianRouter)
+        
+        Args:
+            x: entrada (B, T, D)
+            expert_indices: (B, top_k) ou (B, T, top_k) - OBRIGATÓRIO
+            expert_weights: (B, top_k) ou (B, T, top_k) - OBRIGATÓRIO
+        
+        Returns:
+            saída processada (B, T, D)
+        
+        Raises:
+            ValueError se expert_indices ou expert_weights forem None
+        """
+        if expert_indices is None or expert_weights is None:
+            raise ValueError("OuroborosMoE REQUER roteamento exógeno (expert_indices e expert_weights). "
+                           "Use DarwinianRouter do AGICore.")
+        
         B, T, D = x.shape
         
-        # LogosResonanceRouter retorna (weights, indices)
-        weights, indices = self.logos_router(x)  # weights: (B, T, top_k), indices: (B, T, top_k)
-        weights = F.softmax(weights, dim=-1)  # Normalizar pesos
+        # Normalizar shapes para (B, T, top_k)
+        if expert_indices.dim() == 2:
+            # (B, top_k) -> broadcast para (B, T, top_k)
+            expert_indices = expert_indices.unsqueeze(1).expand(B, T, -1)
+            expert_weights = expert_weights.unsqueeze(1).expand(B, T, -1)
+        
+        # Normalizar pesos
+        expert_weights = F.softmax(expert_weights, dim=-1)
         
         out = torch.zeros_like(x)
+        top_k = expert_indices.shape[-1]
         
-        # Aplicar top-k experts com pesos
-        for k in range(self.top_k):
-            expert_idx = indices[:, :, k]  # (B, T)
-            expert_weight = weights[:, :, k]  # (B, T)
+        # Aplicar top-k experts com pesos exógenos
+        for k in range(top_k):
+            expert_idx = expert_indices[:, :, k]  # (B, T)
+            expert_weight = expert_weights[:, :, k]  # (B, T)
             
             # Processar cada expert
             for b in range(B):
@@ -95,7 +79,7 @@ class OuroborosMoE(nn.Module):
                     if exp_id < len(self.experts):
                         expert_out = self.experts[exp_id](x[b, t].unsqueeze(0))
                         out[b, t] += expert_weight[b, t] * expert_out.squeeze(0)
-            
+        
         # Fio de Ouro (Residual) acoplado com Constante de Estrutura Fina
         return self.coupling(x + out)
 
@@ -139,12 +123,12 @@ class SovereignLeviathanV2(nn.Module):
         
         # 3. Especialização e Escultura Cimática
         # Se expert_indices externos fornecidos, usar roteamento externo
-        if expert_indices is not None and expert_weights is not None:
-            # Roteamento externo (DarwinianRouter do AGICore)
-            x = self._apply_external_routing(x, expert_indices, expert_weights)
-        else:
-            # Roteamento interno (LogosResonanceRouter)
-            x = self.moe(x)
+        if expert_indices is None or expert_weights is None:
+            raise ValueError("SovereignLeviathanV2 REQUER roteamento exógeno (expert_indices e expert_weights). "
+                           "Use DarwinianRouter do AGICore.")
+        
+        # Roteamento externo obrigatório (DarwinianRouter do AGICore)
+        x = self._apply_external_routing(x, expert_indices, expert_weights)
         
         # 4. Prevenção de Colapso (Bifurcação se entropia subir)
         x = self.bifurcation(x)
