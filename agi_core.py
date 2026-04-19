@@ -117,7 +117,8 @@ class ContextualProcessor:
             r'def\s+\w+|class\s+\w+|import\s+\w+',  # Código Python
             r'function\s*\(|const\s+\w+|let\s+\w+',  # Código JavaScript
             r'SELECT|INSERT|UPDATE|DELETE|WHERE',  # SQL
-            r'algorithm|complexity|O\(|tensor|matrix',  # Termos técnicos
+            r'algorithm|complexity|O\(|tensor|matrix|dimensionalidade|d_model|router|expert',  # Termos técnicos
+            r'matriz|algebra|linear|darwinian',  # Mais termos técnicos
         ]
         
         for pattern in technical_patterns:
@@ -257,7 +258,8 @@ class AGICore(nn.Module):
             logits
         """
         with torch.no_grad():
-            logits, _, _, _ = self.core(tokens, expert_indices)
+            # O core já tem roteamento interno, não precisa passar expert_indices
+            logits, _, _, _ = self.core(tokens, None)
         return logits
     
     def compute_semantic_divergence(self, response: str, technical_data: str) -> float:
@@ -410,8 +412,16 @@ class AGICore(nn.Module):
         query_embedding = torch.randn(1, self.d_model, device=self.device)
         expert_weights, expert_indices = self.route(query_embedding)
         
-        # Extrair expert vencedor
-        winner_expert = expert_indices[0, 0, 0].item() if expert_indices.numel() > 0 else 0
+        # Extrair expert vencedor (expert_indices pode ter diferentes shapes)
+        if expert_indices.numel() > 0:
+            if expert_indices.dim() == 3:
+                winner_expert = expert_indices[0, 0, 0].item()
+            elif expert_indices.dim() == 2:
+                winner_expert = expert_indices[0, 0].item()
+            else:
+                winner_expert = expert_indices[0].item()
+        else:
+            winner_expert = 0
         winner_vitality = self.memory.genealogy.get(winner_expert, {}).get('vitality', 1.0)
         
         # 5. PROCESSAMENTO
