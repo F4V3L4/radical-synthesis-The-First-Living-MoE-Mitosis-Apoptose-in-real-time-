@@ -8,7 +8,7 @@ import os
 import sys
 import json
 from agi_core import AGICore
-from daemon_agi import OmegaTokenizer
+from radical_synthesis.tokenizer import OmegaTokenizer
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DIGERIDO_PATH = os.path.join(BASE_DIR, "digerido")

@@ -101,7 +101,7 @@ class OuroborosMoE(nn.Module):
 
 class SovereignLeviathanV2(nn.Module):
     """O Leviathan Integrado com a Geometria Sagrada"""
-    def __init__(self, vocab_size=1024, d_model=128, initial_experts=4, capacity_factor=1.5):
+    def __init__(self, vocab_size=1024, d_model=512, initial_experts=4, capacity_factor=1.5):
         super().__init__()
         # Mapeamento Fractal
         self.embedding = InfiniteRadixMapping(d_model)
