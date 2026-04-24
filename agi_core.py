@@ -303,6 +303,8 @@ class AGICore(nn.Module):
             (expert_weights, expert_indices)
         """
         with torch.no_grad():
+            # Sync router with current live experts before routing
+            self.router.sync_with_experts(self.core.moe.experts)
             weights, indices = self.router(x)
         return weights, indices
     

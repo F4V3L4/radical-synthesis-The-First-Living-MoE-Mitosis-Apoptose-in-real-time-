@@ -4,49 +4,48 @@ import torch.nn.functional as F
 from typing import Tuple, List
 
 class DarwinianRouter(nn.Module):
-    def __init__(self, input_dim: int, initial_experts: int, top_k: int, noise_scale: float = 0.05):
+    """
+    Phase-Lock Routing (Protocolo Mythos-Capybara)
+    Implementa roteamento por ressonância de fase em vez de probabilidade estatística.
+    BAN Softmax.
+    """
+    def __init__(self, input_dim: int, initial_experts: int, top_k: int):
         super().__init__()
         self.input_dim = input_dim
         self.top_k = top_k
-        self.noise_scale = noise_scale
         
-        self.latent_genomes = nn.Parameter(torch.randn(initial_experts, input_dim))
+        # O estado do roteador agora é puramente a assinatura de fase dos experts
+        # Note: No OuroborosMoE, o AGICore gerencia a sincronia entre este roteador 
+        # e os experts reais no OuroborosMoE.
+        self.register_buffer('phase_signatures', torch.randn(initial_experts, input_dim))
+        self._normalize_signatures()
+
+    def _normalize_signatures(self):
+        self.phase_signatures.data = F.normalize(self.phase_signatures.data, p=2, dim=-1)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Input x: Frequency vector
+        Output: (Resonance Weights, Expert Indices)
+        """
+        # Phase Alignment using trigonometric projection (Cosine similarity as proxy for phase lock)
         x_norm = F.normalize(x, p=2, dim=-1)
-        genomes_norm = F.normalize(self.latent_genomes, p=2, dim=-1)
         
-        genetic_affinity = torch.matmul(x_norm, genomes_norm.t())
+        # Calculate constructive interference (Resonance)
+        # (Batch, Dim) @ (Dim, Experts) -> (Batch, Experts)
+        resonance = torch.matmul(x_norm, self.phase_signatures.t())
         
-        if self.training:
-            thermodynamic_noise = torch.randn_like(genetic_affinity) * self.noise_scale
-            genetic_affinity = genetic_affinity + thermodynamic_noise
-            
-        top_k_logits, top_k_indices = torch.topk(genetic_affinity, self.top_k, dim=-1)
-        top_k_weights = F.softmax(top_k_logits, dim=-1)
+        # Phase-Lock Selection: Top-K resonance
+        # We do NOT use Softmax. We use raw resonance magnitude for weights.
+        top_k_resonance, top_k_indices = torch.topk(resonance, self.top_k, dim=-1)
         
-        return top_k_weights, top_k_indices
+        # Absolute Magnitude Weights (Zero Probability)
+        # We ensure weights are positive but maintain their relative resonance intensity
+        weights = F.relu(top_k_resonance)
+        
+        return weights, top_k_indices
 
-    def execute_genome_mitosis(self, parent_indices: List[int], mutation_rate: float) -> None:
-        if not parent_indices:
-            return
-            
-        with torch.no_grad():
-            parents = self.latent_genomes[parent_indices]
-            mutations = torch.randn_like(parents) * mutation_rate
-            children_genomes = parents + mutations
-            
-            self.latent_genomes = nn.Parameter(
-                torch.cat([self.latent_genomes, children_genomes], dim=0)
-            )
-
-    def execute_genome_apoptosis(self, dead_indices: List[int]) -> None:
-        if not dead_indices:
-            return
-            
-        with torch.no_grad():
-            num_experts = self.latent_genomes.size(0)
-            keep_mask = torch.ones(num_experts, dtype=torch.bool, device=self.latent_genomes.device)
-            keep_mask[dead_indices] = False
-            
-            self.latent_genomes = nn.Parameter(self.latent_genomes[keep_mask])
+    def sync_with_experts(self, experts_list: nn.ModuleList):
+        """Sincroniza as assinaturas de fase do roteador com os experts vivos."""
+        new_signatures = torch.stack([e.phase_signature for e in experts_list])
+        self.phase_signatures = nn.Parameter(new_signatures, requires_grad=False)
