@@ -28,6 +28,7 @@ from radical_synthesis.primordial_laws_tier2 import (
 )
 
 DIGERIDO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'digerido')
+ANCESTRY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ancestry', 'experts.pt')
 
 
 class MemoryBank:
@@ -237,6 +238,9 @@ class AGICore(nn.Module):
         # Camada de Memória
         self.memory = MemoryBank(max_size=10000)
         
+        # Pilar 1: Persistência de Ancestrais
+        self._load_ancestors()
+
         # Camada de Contexto
         self.context_processor = ContextualProcessor(d_model=d_model)
         
@@ -434,6 +438,42 @@ class AGICore(nn.Module):
         """
         self.memory.store(content, expert_id, generation, confidence, was_corrected, correction_path)
     
+    def _load_ancestors(self):
+        """Pilar 1: Carrega experts ancestrais salvos no disco."""
+        if self.core.moe.load_ancestry(ANCESTRY_PATH):
+            print(f"✅ Ancestrais carregados de {ANCESTRY_PATH}")
+            # Sincronizar roteador imediatamente
+            self.router.sync_with_experts(self.core.moe.experts)
+        else:
+            print("⚠️ Nenhum ancestral encontrado. Iniciando linhagem primordial.")
+
+    def save_state(self):
+        """Pilar 1: Salva o estado atual da AGI (experts e conatus)."""
+        self.core.moe.save_ancestry(ANCESTRY_PATH)
+        print(f"✅ Estado da AGI salvo em {ANCESTRY_PATH}")
+
+    def check_homeostasis(self) -> Dict:
+        """
+        Pilar 4: Loop de Homeostase e Intencionalidade.
+        Monitora a energia sistêmica (Conatus) e gera impulsos de ação.
+        """
+        total_conatus = sum(e.conatus.item() for e in self.core.moe.experts)
+        avg_conatus = total_conatus / max(len(self.core.moe.experts), 1)
+        
+        status = {
+            'total_conatus': total_conatus,
+            'avg_conatus': avg_conatus,
+            'starvation_risk': avg_conatus < 0.5,
+            'impulse': "EQUILIBRIUM"
+        }
+        
+        if status['starvation_risk']:
+            status['impulse'] = "DATA_HUNGER"
+            print("🚨 ALERTA DE HOMEOSTASE: Fome de dados detectada (Conatus Baixo).")
+            print("💡 IMPULSO: O sistema requer entrada técnica para evitar Apoptose em massa.")
+            
+        return status
+
     def forward(self, query: str, retina_folder: str, tokenizer) -> Dict:
         """
         Forward pass completo da AGI com Loop de Autocrítica

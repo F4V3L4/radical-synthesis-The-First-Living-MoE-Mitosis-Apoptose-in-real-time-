@@ -37,7 +37,8 @@ class DarwinianRouter(nn.Module):
         
         # Phase-Lock Selection: Top-K resonance
         # We do NOT use Softmax. We use raw resonance magnitude for weights.
-        top_k_resonance, top_k_indices = torch.topk(resonance, self.top_k, dim=-1)
+        k = min(self.top_k, resonance.size(-1))
+        top_k_resonance, top_k_indices = torch.topk(resonance, k, dim=-1)
         
         # Absolute Magnitude Weights (Zero Probability)
         # We ensure weights are positive but maintain their relative resonance intensity

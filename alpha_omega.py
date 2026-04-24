@@ -121,6 +121,40 @@ class OuroborosMoE(nn.Module):
             updated_list.extend(new_experts)
             self.experts = nn.ModuleList(updated_list)
 
+    def save_ancestry(self, path):
+        """Pilar 1: Salva o estado dos experts ancestrais para persistência."""
+        import os
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        state = {
+            'd_model': self.d_model,
+            'experts': [
+                {
+                    'state_dict': e.state_dict(),
+                    'conatus': e.conatus.item(),
+                    'phase_signature': e.phase_signature
+                } for e in self.experts
+            ]
+        }
+        torch.save(state, path)
+
+    def load_ancestry(self, path):
+        """Pilar 1: Carrega experts ancestrais salvos."""
+        import os
+        if not os.path.exists(path):
+            return False
+        
+        state = torch.load(path)
+        self.d_model = state['d_model']
+        loaded_experts = []
+        for e_data in state['experts']:
+            expert = Expert(self.d_model, phase_signature=e_data['phase_signature'])
+            expert.load_state_dict(e_data['state_dict'])
+            expert.conatus.fill_(e_data['conatus'])
+            loaded_experts.append(expert)
+        
+        self.experts = nn.ModuleList(loaded_experts)
+        return True
+
 class SovereignLeviathanV2(nn.Module):
     """O Leviathan Integrado com a Geometria Sagrada"""
     def __init__(self, vocab_size=1024, d_model=512, initial_experts=4):
