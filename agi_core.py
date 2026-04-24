@@ -220,12 +220,11 @@ class AGICore(nn.Module):
         # Camada de Percepção
         self.retina = VectorRetinaV2(folder=DIGERIDO_PATH, d_model=d_model)
         
-        # Camada de Roteamento
+        # Camada de Roteamento (Phase-Lock)
         self.router = DarwinianRouter(
             input_dim=d_model,
             initial_experts=num_experts,
-            top_k=2,
-            noise_scale=0.05
+            top_k=2
         ).to(self.device)
         
         # Camada de Processamento
