@@ -11,12 +11,15 @@ from sacred_geometry import (
 
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
-    def __init__(self, d_model, phase_signature=None):
+    def __init__(self, d_model, phase_signature=None, internal_dim=None):
         super().__init__()
+        self.d_model = d_model
+        self.internal_dim = internal_dim if internal_dim is not None else d_model * 4
+        
         self.net = nn.Sequential(
-            nn.Linear(d_model, d_model * 4),
+            nn.Linear(d_model, self.internal_dim),
             nn.GELU(),
-            nn.Linear(d_model * 4, d_model),
+            nn.Linear(self.internal_dim, d_model),
             BinarySymmetryLock() 
         )
         self.sculptor = CymaticSculptor(d_model)
@@ -102,15 +105,21 @@ class OuroborosMoE(nn.Module):
                 dead_indices.append(i)
                 continue
 
-            # 2. Asymmetric Mitosis (3-6-9)
+            # 2. Asymmetric Mitosis (3-6-9) + Pilar 3: Structural Evolution
             if expert.conatus >= self.mitosis_threshold:
                 # Spawn two new experts based on polar harmonics
                 phase = expert.phase_signature
                 sig_3 = F.normalize(phase * 3.0 + torch.randn_like(phase) * 0.01, p=2, dim=-1)
                 sig_6 = F.normalize(phase * 6.0 + torch.randn_like(phase) * 0.01, p=2, dim=-1)
                 
-                new_experts.append(Expert(self.d_model, phase_signature=sig_3))
-                new_experts.append(Expert(self.d_model, phase_signature=sig_6))
+                # Pilar 3: Structural Evolution (Expansion of internal dimensionality)
+                # Razão harmônica: Aumentar a dimensionalidade interna baseada no conatus excedente
+                expansion_ratio = 1.0 + (expert.conatus.item() - self.mitosis_threshold) / 10.0
+                new_internal_dim_3 = int(expert.internal_dim * 1.3 * expansion_ratio)
+                new_internal_dim_6 = int(expert.internal_dim * 1.6 * expansion_ratio)
+                
+                new_experts.append(Expert(self.d_model, phase_signature=sig_3, internal_dim=new_internal_dim_3))
+                new_experts.append(Expert(self.d_model, phase_signature=sig_6, internal_dim=new_internal_dim_6))
                 
                 # Reset parent conatus (The stable 9)
                 expert.conatus.fill_(1.0)
@@ -131,7 +140,8 @@ class OuroborosMoE(nn.Module):
                 {
                     'state_dict': e.state_dict(),
                     'conatus': e.conatus.item(),
-                    'phase_signature': e.phase_signature
+                    'phase_signature': e.phase_signature,
+                    'internal_dim': e.internal_dim # Salvar dimensionalidade para o Pilar 3
                 } for e in self.experts
             ]
         }
@@ -147,7 +157,9 @@ class OuroborosMoE(nn.Module):
         self.d_model = state['d_model']
         loaded_experts = []
         for e_data in state['experts']:
-            expert = Expert(self.d_model, phase_signature=e_data['phase_signature'])
+            # Recuperar dimensionalidade interna para reconstrução estrutural
+            internal_dim = e_data.get('internal_dim', self.d_model * 4)
+            expert = Expert(self.d_model, phase_signature=e_data['phase_signature'], internal_dim=internal_dim)
             expert.load_state_dict(e_data['state_dict'])
             expert.conatus.fill_(e_data['conatus'])
             loaded_experts.append(expert)
