@@ -652,19 +652,19 @@ class AGICore(nn.Module):
             
             # 4. SynchronicityDetector
             if expert_indices.numel() > 0:
-                expert_acts = torch.randn(batch_size, self.num_experts, device=self.device)
+                expert_acts = torch.ones(batch_size, self.num_experts, device=self.device)
                 _, _ = self.synchronicity(expert_acts)
             
             # TIER 2
             # 5. PlanetaryGrid
             if expert_indices.numel() > 0:
-                expert_acts = torch.randn(batch_size, self.num_experts, device=self.device)
+                expert_acts = torch.ones(batch_size, self.num_experts, device=self.device)
                 x_sync = self.planetary_grid(expert_acts, time=time)
                 x = x * (1.0 + 0.05 * x_sync.unsqueeze(-1).unsqueeze(-1))
             
             # 6. Amplituedro
             if expert_indices.numel() > 0 and expert_indices.dim() >= 2:
-                expert_weights = torch.softmax(torch.randn(batch_size, 3, device=self.device), dim=1)
+                expert_weights = torch.softmax(torch.ones(batch_size, 3, device=self.device), dim=1)
                 x_optimized, _ = self.amplituedro(expert_indices[:, :3], expert_weights)
                 x = x + 0.05 * x_optimized.unsqueeze(1)
             
@@ -681,7 +681,7 @@ class AGICore(nn.Module):
             
             # 9. StrangeAttractor
             if expert_indices.numel() > 0:
-                expert_acts = torch.randn(batch_size, self.num_experts, device=self.device)
+                expert_acts = torch.ones(batch_size, self.num_experts, device=self.device)
                 x_attracted, _ = self.attractor(expert_acts)
                 x = x * (1.0 + 0.02 * x_attracted.unsqueeze(-1).unsqueeze(-1))
         

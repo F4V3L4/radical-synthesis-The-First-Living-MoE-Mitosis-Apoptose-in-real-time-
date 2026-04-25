@@ -28,7 +28,7 @@ class HarmonicEncoder(nn.Module):
         self.device = device
         
         # Parâmetros de fase
-        self.phase_shift = nn.Parameter(torch.randn(d_model, device=device) * 0.1)
+        self.phase_shift = nn.Parameter(torch.linspace(0, 2 * math.pi, d_model, device=device) * 0.1)
         self.amplitude_scale = nn.Parameter(torch.ones(d_model, device=device))
         
         # Registrar tempo
@@ -82,8 +82,8 @@ class QuantumSuperposition(nn.Module):
         self.device = device
         
         # Amplitudes e fases dos estados
-        self.amplitudes = nn.Parameter(torch.randn(num_states, d_model, device=device))
-        self.phases = nn.Parameter(torch.randn(num_states, d_model, device=device) * math.pi)
+        self.amplitudes = nn.Parameter(torch.ones(num_states, d_model, device=device) / math.sqrt(d_model))
+        self.phases = nn.Parameter(torch.linspace(0, 2 * math.pi, num_states * d_model, device=device).reshape(num_states, d_model))
         
         # Normalizar amplitudes
         self.amplitudes.data = self.amplitudes.data / (torch.norm(self.amplitudes.data, dim=1, keepdim=True) + 1e-8)
@@ -259,7 +259,7 @@ class SynchronicityDetector(nn.Module):
         
         # Matriz de correlação aprendível
         self.correlation_matrix = nn.Parameter(
-            torch.eye(num_experts, device=device) + torch.randn(num_experts, num_experts, device=device) * 0.1
+            torch.eye(num_experts, device=device) + (torch.ones(num_experts, num_experts, device=device) * 0.01)
         )
         
         # Histórico de eventos

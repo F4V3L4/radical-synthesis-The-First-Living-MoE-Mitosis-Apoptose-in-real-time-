@@ -152,8 +152,8 @@ class OuroborosMoE(nn.Module):
             if expert.conatus >= self.mitosis_threshold:
                 # Spawn two new experts based on polar harmonics
                 phase = expert.phase_signature
-                sig_3 = F.normalize(phase * 3.0 + torch.randn_like(phase) * 0.01, p=2, dim=-1)
-                sig_6 = F.normalize(phase * 6.0 + torch.randn_like(phase) * 0.01, p=2, dim=-1)
+                sig_3 = F.normalize(phase * 3.0 + (phase * 0.01), p=2, dim=-1)
+                sig_6 = F.normalize(phase * 6.0 + (phase * 0.01), p=2, dim=-1)
                 
                 # Pilar 3: Structural Evolution (Expansion of internal dimensionality)
                 # Razão harmônica: Aumentar a dimensionalidade interna baseada no conatus excedente
