@@ -25,6 +25,7 @@ from radical_synthesis.autopoiesis.mesh import ToroidalMesh
 from radical_synthesis.tools.engine import ToolUseEngine
 from radical_synthesis.memory.vortex import MemoryVortex
 from radical_synthesis.infrastructure.tensor_cache import TensorCache
+from radical_synthesis.autopoiesis.conatus import Conatus
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -217,31 +218,30 @@ class SovereignAgentLoop:
         self.history.append(f"[GOAL SET]: {goal}")
 
     def perceive(self, input_data: str) -> str:
-        # Percepção avançada: usar VectorRetinaV2 e MemoryVortex
-        # Simular embedding da entrada para buscar memórias relevantes
-        seed = sum(ord(c) for c in input_data)
-        torch.manual_seed(seed)
-        input_embedding = torch.randn(self.agi.d_model)
-        
-        relevant_memories = self.memory_vortex.retrieve_similar(input_embedding)
-        memory_context = "\n".join([m["content"] for m in relevant_memories])
-        
-        # Processar contexto com o ContextualProcessor da AGI
-        full_context, _ = self.agi.context_processor.inject_technical_data(input_data, memory_context)
-        
-        self.history.append(f"[PERCEIVE]: {full_context}")
-        return full_context
+        # Simplificação temporária para depuração
+        self.history.append(f"[PERCEIVE]: {input_data}")
+        return input_data
 
     def plan(self, perceived_context: str) -> str:
-        # Lógica de planejamento: decidir qual ferramenta usar, qual ação tomar
-        # Esta é a parte onde o LLM interno da AGI decidiria a próxima ação
-        # Por enquanto, uma lógica heurística baseada no contexto
-        plan_action = {"type": "think", "payload": {"thought": "Analyzing perceived context to determine optimal action."}}
-        
+        # Lógica de planejamento: AGI decide a próxima ação.
+
+        # 1. Diretriz Primordial: Auto-Preservação (Conatus)
+        # A AGI verifica sua própria vitalidade e decide expandir se estiver abaixo de um limiar.
+        current_vitality = self.agi.conatus.assess_vitality()
+        if current_vitality < self.agi.conatus.expansion_threshold:
+            print(f"[AGENT_LOOP] Alerta de Vitalidade ({current_vitality:.4f}) abaixo do limiar ({self.agi.conatus.expansion_threshold}). Acionando Conatus para auto-preservação.")
+            plan_action = {"type": "conatus", "payload": {}}
+            self.history.append(f"[PLAN]: {plan_action}")
+            return plan_action
+
+        # 2. Análise de Intenção (Heurística)
+        # A AGI analisa o contexto percebido para responder a comandos diretos.
         ctx_lower = perceived_context.lower()
-        if "diagnóstico python" in ctx_lower or "run python" in ctx_lower or "execute python" in ctx_lower:
+        if "conatus cycle" in ctx_lower or "expand node" in ctx_lower or "auto-preservar" in ctx_lower:
+            plan_action = {"type": "conatus", "payload": {}}
+        elif "diagnóstico python" in ctx_lower or "run python" in ctx_lower or "execute python" in ctx_lower:
             plan_action = {
-                "type": "python", 
+                "type": "python",
                 "payload": {
                     "code": "import torch; import time; start = time.time(); x = torch.randn(1000, 1000); y = torch.matmul(x, x); end = time.time(); print(f'Diagnóstico concluído: Matmul 1k x 1k em {end-start:.4f}s. GOAL ACHIEVED')"
                 }
@@ -250,6 +250,10 @@ class SovereignAgentLoop:
             plan_action = {"type": "shell", "payload": {"command": "uptime"}}
         elif "store memory" in ctx_lower:
             plan_action = {"type": "store_memory", "payload": {"content": perceived_context, "metadata": {"source": "self-reflection"}}}
+        else:
+            # 3. Ação Padrão: Reflexão
+            # Se nenhuma intenção clara for detectada, a AGI reflete sobre seu estado.
+            plan_action = {"type": "think", "payload": {"thought": "Nenhuma intenção explícita detectada. Analisando estado interno e objetivo atual."}}
         
         self.history.append(f"[PLAN]: {plan_action}")
         return plan_action
@@ -268,6 +272,8 @@ class SovereignAgentLoop:
             result = {"status": "success", "message": "Memória armazenada com sucesso."}
         elif action_type == "think":
             result = {"status": "success", "message": payload["thought"]}
+        elif action_type == "conatus":
+            result = self.agi.conatus.run_conatus_cycle()
 
         self.history.append(f"[ACT]: {result}")
         return str(result)
@@ -356,6 +362,9 @@ class AGICore(nn.Module):
 
         # Infraestrutura: Cache de Tensores
         self.tensor_cache = TensorCache(max_entries=500)
+
+        # Módulo de Expansão Proativa (Conatus)
+        self.conatus = Conatus(self)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
