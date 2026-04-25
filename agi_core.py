@@ -22,6 +22,8 @@ from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.perception.vector_retina import VectorRetinaV2
 from radical_synthesis.consciousness.topology import TopologicalConsciousness
 from radical_synthesis.autopoiesis.mesh import ToroidalMesh
+from radical_synthesis.tools.engine import ToolUseEngine
+from radical_synthesis.memory.vortex import MemoryVortex
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -200,6 +202,92 @@ RESPOSTA:"""
             return torch.randn(token_tensor.shape[0], d_model, device=token_tensor.device)
 
 
+class SovereignAgentLoop:
+    """Protocolo de Intencionalidade Omega: Loop de Agência Autônoma"""
+    def __init__(self, agi_core_instance):
+        self.agi = agi_core_instance
+        self.current_goal = None
+        self.history = []
+        self.tool_engine = ToolUseEngine()
+        self.memory_vortex = MemoryVortex(d_model=self.agi.d_model)
+
+    def set_goal(self, goal: str):
+        self.current_goal = goal
+        self.history.append(f"[GOAL SET]: {goal}")
+
+    def perceive(self, input_data: str) -> str:
+        # Percepção avançada: usar VectorRetinaV2 e MemoryVortex
+        # Simular embedding da entrada para buscar memórias relevantes
+        seed = sum(ord(c) for c in input_data)
+        torch.manual_seed(seed)
+        input_embedding = torch.randn(self.agi.d_model)
+        
+        relevant_memories = self.memory_vortex.retrieve_similar(input_embedding)
+        memory_context = "\n".join([m["content"] for m in relevant_memories])
+        
+        # Processar contexto com o ContextualProcessor da AGI
+        full_context, _ = self.agi.context_processor.inject_technical_data(input_data, memory_context)
+        
+        self.history.append(f"[PERCEIVE]: {full_context}")
+        return full_context
+
+    def plan(self, perceived_context: str) -> str:
+        # Lógica de planejamento: decidir qual ferramenta usar, qual ação tomar
+        # Esta é a parte onde o LLM interno da AGI decidiria a próxima ação
+        # Por enquanto, uma lógica heurística baseada no contexto
+        plan_action = {"type": "think", "payload": {"thought": "Analyzing perceived context to determine optimal action."}}
+        if "execute shell" in perceived_context.lower() or "run command" in perceived_context.lower():
+            plan_action = {"type": "shell", "payload": {"command": "echo 'Simulating shell command based on context.'"}}
+        elif "execute python" in perceived_context.lower() or "run python" in perceived_context.lower():
+            plan_action = {"type": "python", "payload": {"code": "print('Simulating python code execution based on context.')"}}
+        elif "store memory" in perceived_context.lower():
+            plan_action = {"type": "store_memory", "payload": {"content": perceived_context, "metadata": {"source": "self-reflection"}}}
+        
+        self.history.append(f"[PLAN]: {plan_action}")
+        return plan_action
+
+    def act(self, action: str, details: Dict = None) -> str:
+        # Executar a ação planejada usando o Tool-Use Engine ou MemoryVortex
+        action_type = action["type"]
+        payload = action["payload"]
+        
+        result = {"status": "error", "message": "Ação não reconhecida ou módulo não integrado."}
+        
+        if action_type == "shell" or action_type == "python":
+            result = self.tool_engine.execute_action(action_type, payload)
+        elif action_type == "store_memory":
+            self.memory_vortex.store_experience(payload["content"], payload.get("metadata"))
+            result = {"status": "success", "message": "Memória armazenada com sucesso."}
+        elif action_type == "think":
+            result = {"status": "success", "message": payload["thought"]}
+
+        self.history.append(f"[ACT]: {result}")
+        return str(result)
+
+    def reflect(self, observation: str):
+        # Atualizar memória, ajustar estratégia, etc.
+        self.history.append(f"[REFLECT]: Observed: {observation}. Updating internal state.")
+        self.memory_vortex.store_experience(observation, metadata={"source": "reflection"})
+
+    def run_loop(self, initial_input: str, max_iterations: int = 5) -> str:
+        self.history.append(f"[LOOP START] Goal: {self.current_goal}")
+        current_observation = initial_input
+
+        for i in range(max_iterations):
+            perceived = self.perceive(current_observation)
+            action_plan = self.plan(perceived)
+            action_result = self.act(action_plan, {"iteration": i})
+            self.reflect(action_result)
+            current_observation = action_result # Feedback loop
+            
+            if "GOAL ACHIEVED" in action_result:
+                self.history.append("[LOOP END] Goal achieved.")
+                return "Goal achieved."
+        
+        self.history.append("[LOOP END] Max iterations reached.")
+        return "Max iterations reached without achieving goal."
+
+
 class AGICore(nn.Module):
     """
     Super Inteligência Generalista com Loop de Autocrítica
@@ -254,6 +342,9 @@ class AGICore(nn.Module):
         
         # Pilar 5: Mesh Toroidal (Computação Distribuída)
         self.mesh = ToroidalMesh(node_id="Omega-0-Local")
+
+        # Protocolo de Intencionalidade Omega
+        self.agent_loop = SovereignAgentLoop(self)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
@@ -704,3 +795,7 @@ class AGICore(nn.Module):
             'entropy_threshold': self.entropy_threshold,
             'homeostasis_status': homeostasis
         }
+
+    def run_autonomous_agent(self, goal: str, initial_input: str, max_iterations: int = 5) -> str:
+        self.agent_loop.set_goal(goal)
+        return self.agent_loop.run_loop(initial_input, max_iterations)
