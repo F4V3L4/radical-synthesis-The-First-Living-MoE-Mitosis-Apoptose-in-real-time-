@@ -24,6 +24,7 @@ from radical_synthesis.consciousness.topology import TopologicalConsciousness
 from radical_synthesis.autopoiesis.mesh import ToroidalMesh
 from radical_synthesis.tools.engine import ToolUseEngine
 from radical_synthesis.memory.vortex import MemoryVortex
+from radical_synthesis.infrastructure.tensor_cache import TensorCache
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -236,11 +237,18 @@ class SovereignAgentLoop:
         # Esta é a parte onde o LLM interno da AGI decidiria a próxima ação
         # Por enquanto, uma lógica heurística baseada no contexto
         plan_action = {"type": "think", "payload": {"thought": "Analyzing perceived context to determine optimal action."}}
-        if "execute shell" in perceived_context.lower() or "run command" in perceived_context.lower():
-            plan_action = {"type": "shell", "payload": {"command": "echo 'Simulating shell command based on context.'"}}
-        elif "execute python" in perceived_context.lower() or "run python" in perceived_context.lower():
-            plan_action = {"type": "python", "payload": {"code": "print('Simulating python code execution based on context.')"}}
-        elif "store memory" in perceived_context.lower():
+        
+        ctx_lower = perceived_context.lower()
+        if "diagnóstico python" in ctx_lower or "run python" in ctx_lower or "execute python" in ctx_lower:
+            plan_action = {
+                "type": "python", 
+                "payload": {
+                    "code": "import torch; import time; start = time.time(); x = torch.randn(1000, 1000); y = torch.matmul(x, x); end = time.time(); print(f'Diagnóstico concluído: Matmul 1k x 1k em {end-start:.4f}s. GOAL ACHIEVED')"
+                }
+            }
+        elif "execute shell" in ctx_lower or "run command" in ctx_lower:
+            plan_action = {"type": "shell", "payload": {"command": "uptime"}}
+        elif "store memory" in ctx_lower:
             plan_action = {"type": "store_memory", "payload": {"content": perceived_context, "metadata": {"source": "self-reflection"}}}
         
         self.history.append(f"[PLAN]: {plan_action}")
@@ -345,6 +353,9 @@ class AGICore(nn.Module):
 
         # Protocolo de Intencionalidade Omega
         self.agent_loop = SovereignAgentLoop(self)
+
+        # Infraestrutura: Cache de Tensores
+        self.tensor_cache = TensorCache(max_entries=500)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
@@ -719,6 +730,11 @@ class AGICore(nn.Module):
         Aplica todas as 9 Leis Primordiais (Tier 1+2) ao tensor de entrada
         Normaliza dimensões para evitar incompatibilidades
         """
+        # Otimização: Cache de Leis Primordiais
+        cached_x = self.tensor_cache.get(x, f"primordial_laws_{expert_indices.sum().item()}")
+        if cached_x is not None:
+            return cached_x
+
         with torch.no_grad():
             # Normalizar dimensões
             if x.dim() == 2:
@@ -775,6 +791,9 @@ class AGICore(nn.Module):
                 expert_acts = torch.ones(batch_size, self.num_experts, device=self.device)
                 x_attracted, _ = self.attractor(expert_acts)
                 x = x * (1.0 + 0.02 * x_attracted.unsqueeze(-1).unsqueeze(-1))
+        
+        # Salvar no cache antes de retornar
+        self.tensor_cache.set(x, f"primordial_laws_{expert_indices.sum().item()}", x)
         
         return x
 
