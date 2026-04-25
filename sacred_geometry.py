@@ -86,7 +86,7 @@ class CymaticSculptor(nn.Module):
         # O SEGREDO: Frequência acústica precisa de dampening no espaço latente
         # Isso converte o 432Hz em uma onda estrutural longa, em vez de ruído estático
         self.latent_freq = frequency / 10000.0
-        self.phase = nn.Parameter(torch.randn(d_model))
+        self.phase = nn.Parameter(torch.linspace(0, 2 * 3.14159, d_model))
 
     def forward(self, x):
         # Omega-0: Ajuste dinâmico de fase

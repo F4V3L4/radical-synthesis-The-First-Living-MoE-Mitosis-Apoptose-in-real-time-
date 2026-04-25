@@ -93,7 +93,7 @@ class Amplituedro(nn.Module):
         self.device = device
         
         # Vértices do amplituedro (pontos de otimização)
-        self.vertices = nn.Parameter(torch.randn(num_experts, d_model, device=device))
+        self.vertices = nn.Parameter(torch.ones(num_experts, d_model, device=device))
         
         # Pesos de conectividade
         self.connectivity = nn.Parameter(torch.ones(num_experts, num_experts, device=device) / num_experts)
@@ -117,10 +117,16 @@ class Amplituedro(nn.Module):
             path = torch.zeros(self.d_model, device=self.device)
             total_weight = 0.0
             
-            for idx, weight in zip(expert_indices[b], expert_weights[b]):
+            # Achatar se necessário para garantir iterabilidade de escalar
+            b_indices = expert_indices[b].flatten()
+            b_weights = expert_weights[b].flatten()
+            num_elements = min(len(b_indices), len(b_weights))
+            for i in range(num_elements):
+                idx = int(b_indices[i].item())
+                weight = b_weights[i].item()
                 if idx < self.num_experts:
                     path += weight * self.vertices[idx]
-                    total_weight += weight.item()
+                    total_weight += weight
             
             if total_weight > 0:
                 path = path / total_weight
@@ -214,10 +220,10 @@ class QuantumEntanglement(nn.Module):
         self.device = device
         
         # Estados de Bell (base de emaranhamento máximo)
-        self.bell_states = nn.Parameter(torch.randn(4, d_model, device=device))
+        self.bell_states = nn.Parameter(torch.ones(4, d_model, device=device))
         
         # Matriz de correlação não-local
-        self.nonlocal_correlation = nn.Parameter(torch.randn(num_experts, num_experts, device=device))
+        self.nonlocal_correlation = nn.Parameter(torch.ones(num_experts, num_experts, device=device) * 0.01)
     
     def forward(self, expert_states: torch.Tensor) -> Tuple[torch.Tensor, float]:
         """
@@ -234,13 +240,14 @@ class QuantumEntanglement(nn.Module):
         # Aplicar correlação não-local
         entangled = torch.zeros_like(expert_states)
         
+        num_in_experts = expert_states.shape[1]
         for b in range(batch_size):
-            for i in range(self.num_experts):
+            for i in range(num_in_experts):
                 # Combinar estado com correlações não-locais
                 entangled[b, i] = expert_states[b, i]
                 
-                for j in range(self.num_experts):
-                    if i != j:
+                for j in range(num_in_experts):
+                    if i != j and i < self.num_experts and j < self.num_experts:
                         # Adicionar influência não-local
                         correlation_strength = torch.sigmoid(self.nonlocal_correlation[i, j])
                         entangled[b, i] += correlation_strength * expert_states[b, j]
@@ -252,10 +259,22 @@ class QuantumEntanglement(nn.Module):
     
     def calculate_concurrence(self, states: torch.Tensor) -> float:
         """Calcula concurrence (medida de emaranhamento)"""
-        # Concurrence = traço de correlação
-        correlation = torch.matmul(states.transpose(1, 2), states)
-        trace = torch.trace(correlation[0])  # Usar primeiro batch
-        return float(torch.abs(trace) / (self.num_experts * self.d_model + 1e-8))
+        # Concurrence = traço de correlação (usando produto escalar para evitar erros de dimensão)
+        # states: [batch, num_experts, d_model]
+        # correlation: [batch, num_experts, num_experts]
+        # states: [batch, seq_len, d_model] ou [batch, num_experts, d_model]
+        # Garantir que temos no máximo 3 dimensões para matmul
+        while states.dim() > 3:
+            states = states.mean(dim=1)
+            
+        correlation = torch.matmul(states, states.transpose(-1, -2))
+        # correlation: [batch, N, N]
+        matrix = correlation[0]
+        while matrix.dim() > 2:
+            matrix = matrix.mean(dim=0)
+            
+        trace = torch.trace(matrix)
+        return float(torch.abs(trace) / (states.shape[-2] * states.shape[-1] + 1e-8))
 
 
 class StrangeAttractor(nn.Module):
@@ -273,7 +292,7 @@ class StrangeAttractor(nn.Module):
         self.device = device
         
         # Centros dos atratores
-        self.attractor_centers = nn.Parameter(torch.randn(num_experts, num_experts, device=device))
+        self.attractor_centers = nn.Parameter(torch.ones(num_experts, num_experts, device=device))
         
         # Raios de atração
         self.attraction_radii = nn.Parameter(torch.ones(num_experts, device=device))
@@ -307,19 +326,18 @@ class StrangeAttractor(nn.Module):
             min_distance = float('inf')
             closest_attractor = 0
             
-            for i in range(self.num_experts):
-                distance = torch.norm(expert_activations[b] - self.attractor_centers[i])
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_attractor = i
+            # Operação vetorizada para encontrar atrator mais próximo
+            distances = torch.norm(self.attractor_centers - expert_activations[b].unsqueeze(0), dim=1)
+            min_distance, closest_attractor = torch.min(distances, dim=0)
+            closest_attractor = int(closest_attractor.item())
             
             attractor_indices.append(closest_attractor)
             
-            # Atrair em direção ao atrator
-            direction = self.attractor_centers[closest_attractor] - expert_activations[b]
-            attraction_strength = torch.sigmoid(self.attraction_radii[closest_attractor])
-            attracted[b] = expert_activations[b] + 0.1 * attraction_strength * direction
-        
+            # Atrair para o centro
+            attraction_strength = torch.exp(-min_distance / (self.attraction_radii[closest_attractor] + 1e-8))
+            attracted[b] = expert_activations[b] * (1.0 - 0.1 * attraction_strength) + \
+                          self.attractor_centers[closest_attractor] * (0.1 * attraction_strength)
+            
         return attracted, attractor_indices
     
     def get_attractor_stability(self) -> float:

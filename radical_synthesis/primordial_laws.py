@@ -111,7 +111,7 @@ class QuantumSuperposition(nn.Module):
             superposition.append(state)
         
         # Stack estados: [batch, num_states, d_model]
-        return torch.stack(superposition, dim=1)
+        return torch.stack(superposition, dim=1).real
     
     def collapse(self, measurement: torch.Tensor) -> Tuple[torch.Tensor, int]:
         """
@@ -304,9 +304,15 @@ class SynchronicityDetector(nn.Module):
         
         # Detectar pares sincronos (correlação > threshold)
         sync_pairs = []
+        # Garantir que correlation seja 2D para iteração
+        if correlation.dim() > 2:
+            correlation_matrix = correlation.mean(dim=0)
+        else:
+            correlation_matrix = correlation
+            
         for i in range(self.num_experts):
             for j in range(i + 1, self.num_experts):
-                if correlation[i, j] > self.threshold:
+                if correlation_matrix[i, j].item() > self.threshold:
                     sync_pairs.append((i, j))
         
         return sync_pairs, correlation
