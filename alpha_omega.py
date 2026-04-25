@@ -11,14 +11,25 @@ from sacred_geometry import (
 
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
-    def __init__(self, d_model, phase_signature=None, internal_dim=None):
+    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU"):
         super().__init__()
         self.d_model = d_model
         self.internal_dim = internal_dim if internal_dim is not None else d_model * 4
+        self.activation_type = activation_type
+        
+        # Mapeamento de ativações para Autopoiese
+        activations = {
+            "GELU": nn.GELU(),
+            "SiLU": nn.SiLU(),
+            "ReLU": nn.ReLU(),
+            "Tanh": nn.Tanh(),
+            "Hardswish": nn.Hardswish()
+        }
+        act = activations.get(activation_type, nn.GELU())
         
         self.net = nn.Sequential(
             nn.Linear(d_model, self.internal_dim),
-            nn.GELU(),
+            act,
             nn.Linear(self.internal_dim, d_model),
             BinarySymmetryLock() 
         )
@@ -130,8 +141,10 @@ class OuroborosMoE(nn.Module):
             is_resonated = i in resonated_indices
             expert.update_conatus(is_resonated)
 
-            # 1. Absolute Apoptosis
+            # 1. Absolute Apoptosis + Pilar 3: Epigenetic Inheritance
             if expert.conatus < self.apoptosis_threshold:
+                # Antes de morrer, o expert transfere sua 'experiência' para os vizinhos
+                self._epigenetic_inheritance(i)
                 dead_indices.append(i)
                 continue
 
@@ -148,8 +161,15 @@ class OuroborosMoE(nn.Module):
                 new_internal_dim_3 = int(expert.internal_dim * 1.3 * expansion_ratio)
                 new_internal_dim_6 = int(expert.internal_dim * 1.6 * expansion_ratio)
                 
-                new_experts.append(Expert(self.d_model, phase_signature=sig_3, internal_dim=new_internal_dim_3))
-                new_experts.append(Expert(self.d_model, phase_signature=sig_6, internal_dim=new_internal_dim_6))
+                # Pilar Autopoiese: Mutação de Ativação
+                # Escolher nova ativação baseada em harmônicos
+                act_pool = ["GELU", "SiLU", "ReLU", "Tanh", "Hardswish"]
+                # 3 e 6 como índices de rotação no pool
+                act_3 = act_pool[(act_pool.index(expert.activation_type) + 1) % len(act_pool)]
+                act_6 = act_pool[(act_pool.index(expert.activation_type) + 2) % len(act_pool)]
+                
+                new_experts.append(Expert(self.d_model, phase_signature=sig_3, internal_dim=new_internal_dim_3, activation_type=act_3))
+                new_experts.append(Expert(self.d_model, phase_signature=sig_6, internal_dim=new_internal_dim_6, activation_type=act_6))
                 
                 # Reset parent conatus (The stable 9)
                 expert.conatus.fill_(1.0)
@@ -159,6 +179,39 @@ class OuroborosMoE(nn.Module):
             updated_list = [self.experts[i] for i in range(len(self.experts)) if i not in dead_indices]
             updated_list.extend(new_experts)
             self.experts = nn.ModuleList(updated_list)
+
+    def _epigenetic_inheritance(self, dead_idx):
+        """
+        Pilar 3: Herança Epigenética
+        Transfere pesos e assinatura de fase do expert moribundo para o vizinho mais próximo.
+        """
+        if len(self.experts) <= 1:
+            return
+            
+        dead_expert = self.experts[dead_idx]
+        dead_sig = dead_expert.phase_signature
+        
+        # Encontrar o vizinho mais ressonante (excluindo o próprio)
+        max_res = -1.0
+        neighbor_idx = -1
+        
+        for i, expert in enumerate(self.experts):
+            if i == dead_idx: continue
+            res = torch.dot(dead_sig, expert.phase_signature).item()
+            if res > max_res:
+                max_res = res
+                neighbor_idx = i
+        
+        if neighbor_idx != -1:
+            # Destilação de conhecimento: Média ponderada da assinatura de fase
+            # O vizinho absorve parte da identidade do expert que morreu
+            neighbor = self.experts[neighbor_idx]
+            neighbor.phase_signature.data = F.normalize(
+                neighbor.phase_signature.data * 0.8 + dead_sig * 0.2, 
+                p=2, dim=-1
+            )
+            # O vizinho ganha um pequeno bônus de conatus por absorver a carga
+            neighbor.conatus += 0.05
 
     def save_ancestry(self, path):
         """Pilar 1: Salva o estado dos experts ancestrais para persistência."""
@@ -171,7 +224,8 @@ class OuroborosMoE(nn.Module):
                     'state_dict': e.state_dict(),
                     'conatus': e.conatus.item(),
                     'phase_signature': e.phase_signature,
-                    'internal_dim': e.internal_dim # Salvar dimensionalidade para o Pilar 3
+                    'internal_dim': e.internal_dim,
+                    'activation_type': e.activation_type
                 } for e in self.experts
             ]
         }
@@ -187,9 +241,10 @@ class OuroborosMoE(nn.Module):
         self.d_model = state['d_model']
         loaded_experts = []
         for e_data in state['experts']:
-            # Recuperar dimensionalidade interna para reconstrução estrutural
+            # Recuperar dimensionalidade interna e ativação para reconstrução estrutural
             internal_dim = e_data.get('internal_dim', self.d_model * 4)
-            expert = Expert(self.d_model, phase_signature=e_data['phase_signature'], internal_dim=internal_dim)
+            activation_type = e_data.get('activation_type', 'GELU')
+            expert = Expert(self.d_model, phase_signature=e_data['phase_signature'], internal_dim=internal_dim, activation_type=activation_type)
             expert.load_state_dict(e_data['state_dict'])
             expert.conatus.fill_(e_data['conatus'])
             loaded_experts.append(expert)

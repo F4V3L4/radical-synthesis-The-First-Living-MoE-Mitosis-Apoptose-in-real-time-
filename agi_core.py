@@ -21,6 +21,7 @@ from alpha_omega import SovereignLeviathanV2
 from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.perception.vector_retina import VectorRetinaV2
 from radical_synthesis.consciousness.topology import TopologicalConsciousness
+from radical_synthesis.autopoiesis.mesh import ToroidalMesh
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -251,6 +252,9 @@ class AGICore(nn.Module):
         # Camada de Contexto
         self.context_processor = ContextualProcessor(d_model=d_model)
         
+        # Pilar 5: Mesh Toroidal (Computação Distribuída)
+        self.mesh = ToroidalMesh(node_id="Omega-0-Local")
+        
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
         
@@ -459,27 +463,46 @@ class AGICore(nn.Module):
         self.core.moe.save_ancestry(ANCESTRY_PATH)
         print(f"✅ Estado da AGI salvo em {ANCESTRY_PATH}")
 
-    def check_homeostasis(self) -> Dict:
+    def check_homeostasis(self):
         """
-        Pilar 4: Loop de Homeostase e Intencionalidade.
-        Monitora a energia sistêmica (Conatus) e gera impulsos de ação.
+        Pilar 4: Loop de Homeostase (Protocolo Mythos-Capybara)
+        Monitora a energia sistêmica e gera alertas de fome de dados.
         """
-        total_conatus = sum(e.conatus.item() for e in self.core.moe.experts)
-        avg_conatus = total_conatus / max(len(self.core.moe.experts), 1)
-        
-        status = {
-            'total_conatus': total_conatus,
-            'avg_conatus': avg_conatus,
-            'starvation_risk': avg_conatus < 0.5,
-            'impulse': "EQUILIBRIUM"
-        }
-        
-        if status['starvation_risk']:
-            status['impulse'] = "DATA_HUNGER"
-            print("🚨 ALERTA DE HOMEOSTASE: Fome de dados detectada (Conatus Baixo).")
-            print("💡 IMPULSO: O sistema requer entrada técnica para evitar Apoptose em massa.")
+        experts = self.core.moe.experts
+        if not experts:
+            return "CRITICAL_COLLAPSE"
             
-        return status
+        avg_conatus = sum(e.conatus.item() for e in experts) / len(experts)
+        
+        if avg_conatus < 0.5:
+            # Ativar Percepção Ativa se houver fome de dados
+            self.active_perception_loop()
+            return "DATA_HUNGER" 
+        elif avg_conatus > 2.5:
+            return "EVOLUTIONARY_SURGE"
+        return "STABLE"
+
+    def active_perception_loop(self):
+        """
+        Pilar 2: Percepção Ativa (Sensory Resonance Loop)
+        Busca dados proativamente quando o Conatus está baixo.
+        """
+        print("🔍 OMEGA-0: Iniciando Percepção Ativa (Data Hunger detectado)")
+        
+        try:
+            # Buscar algo aleatório para 'alimentar' o sistema
+            random_query = "fundamental laws of physics and information theory"
+            results = self.retina.buscar_multiplos(random_query, top_k=3)
+            
+            if results:
+                print(f"🧬 Ressonância Espontânea detectada: {len(results)} fragmentos encontrados.")
+                # Processar os dados internamente para aumentar o Conatus
+                tokens = torch.randint(0, 1000, (1, 32), device=self.device)
+                proj = self.context_processor.project_to_routing_space(tokens.float(), self.d_model)
+                weights, indices = self.route(proj)
+                self.core(tokens, expert_indices=indices, expert_weights=weights)
+        except Exception as e:
+            print(f"⚠️ Erro na Percepção Ativa: {e}")
 
     def forward(self, query: str, retina_folder: str, tokenizer) -> Dict:
         """
@@ -664,16 +687,20 @@ class AGICore(nn.Module):
         
         return x
 
+
+
     def get_stats(self) -> Dict:
         """Retorna estatísticas da AGI"""
+        homeostasis = self.check_homeostasis()
         return {
             'd_model': self.d_model,
-            'num_experts': self.num_experts,
+            'num_experts': len(self.core.moe.experts),
             'memory_size': len(self.memory.memories),
             'genealogy_size': len(self.memory.genealogy),
             'context_buffer_size': len(self.context_processor.context_buffer),
             'correction_paths_count': len(self.memory.correction_paths),
             'last_winner_expert': self.memory.last_winner_expert,
             'last_winner_vitality': self.memory.last_winner_vitality,
-            'entropy_threshold': self.entropy_threshold
+            'entropy_threshold': self.entropy_threshold,
+            'homeostasis_status': homeostasis
         }
