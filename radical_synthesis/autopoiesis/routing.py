@@ -48,5 +48,21 @@ class DarwinianRouter(nn.Module):
 
     def sync_with_experts(self, experts_list: nn.ModuleList):
         """Sincroniza as assinaturas de fase do roteador com os experts vivos."""
-        new_signatures = torch.stack([e.phase_signature for e in experts_list])
-        self.phase_signatures = nn.Parameter(new_signatures, requires_grad=False)
+        if not experts_list:
+            return
+            
+        # Coletar assinaturas e garantir que todas tenham a dimensão correta (input_dim)
+        signatures = []
+        for e in experts_list:
+            sig = e.phase_signature
+            if sig.size(-1) != self.input_dim:
+                # Se houver mismatch (ex: mutação estrutural), projetar para input_dim
+                if sig.size(-1) > self.input_dim:
+                    sig = sig[:self.input_dim]
+                else:
+                    sig = F.pad(sig, (0, self.input_dim - sig.size(-1)))
+            signatures.append(sig)
+            
+        new_signatures = torch.stack(signatures)
+        # Manter como buffer para evitar que o PyTorch tente treinar ou mude o tipo
+        self.register_buffer('phase_signatures', new_signatures, persistent=False)

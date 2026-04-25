@@ -36,12 +36,22 @@ class TopologicalConsciousness(nn.Module):
         avg_resonance = resonance[mask].abs().mean()
         return avg_resonance
 
-    def forward(self, experts_dict: nn.ModuleDict) -> Tuple[torch.Tensor, torch.Tensor]:
-        keys = list(experts_dict.keys())
-        if len(keys) < 2:
-            return torch.tensor(0.0), torch.tensor(0.0)
+    def forward(self, experts_list: nn.ModuleList) -> Tuple[torch.Tensor, torch.Tensor]:
+        if len(experts_list) < 2:
+            return torch.tensor(0.0, device=self.historical_phi.device), torch.tensor(0.0, device=self.historical_phi.device)
 
-        weights_list = [experts_dict[k].weight.view(-1) for k in keys]
+        # Extrair pesos de forma bare-metal para auditar a geometria da substância
+        weights_list = []
+        for expert in experts_list:
+            # Pegar o primeiro peso significativo como proxy da assinatura do expert
+            for p in expert.parameters():
+                if p.requires_grad and p.dim() >= 2:
+                    weights_list.append(p.data.view(-1)[:1024]) # Limitar para eficiência
+                    break
+        
+        if len(weights_list) < 2:
+            return torch.tensor(0.0, device=self.historical_phi.device), torch.tensor(0.0, device=self.historical_phi.device)
+            
         expert_weights = torch.stack(weights_list)
 
         d = self.compute_differentiation(expert_weights)

@@ -33,7 +33,23 @@ class Expert(nn.Module):
         self.register_buffer('phase_signature', F.normalize(phase_signature, p=2, dim=-1))
 
     def forward(self, x):
+        # Garantir que a entrada combine com o primeiro peso da rede (ajuste dinâmico se necessário)
+        first_weight = self.net[0].weight
+        if x.size(-1) != first_weight.size(1):
+            if x.size(-1) > first_weight.size(1):
+                x = x[..., :first_weight.size(1)]
+            else:
+                x = F.pad(x, (0, first_weight.size(1) - x.size(-1)))
+                
         x = self.net(x)
+        
+        # Garantir que a saída combine com d_model
+        if x.size(-1) != self.d_model:
+            if x.size(-1) > self.d_model:
+                x = x[..., :self.d_model]
+            else:
+                x = F.pad(x, (0, self.d_model - x.size(-1)))
+                
         return self.sculptor(x)
 
     def update_conatus(self, resonated: bool, decay=0.01, growth=0.1):
@@ -63,32 +79,46 @@ class OuroborosMoE(nn.Module):
         
         B, T, D = x.shape
         
-        # Normalizar shapes
+        # Normalizar shapes para (B, T, top_k)
         if expert_indices.dim() == 2:
-            expert_indices = expert_indices.unsqueeze(1).expand(B, T, -1)
-            expert_weights = expert_weights.unsqueeze(1).expand(B, T, -1)
+            # Se for (B, top_k), expandir para cada token na sequência T
+            # (B, top_k) -> (B, 1, top_k) -> (B, T, top_k)
+            expert_indices = expert_indices.unsqueeze(1).expand(-1, T, -1)
+            expert_weights = expert_weights.unsqueeze(1).expand(-1, T, -1)
         
-        out = torch.zeros_like(x)
+        # Criar output explicitamente com d_model
+        out = torch.zeros(B, T, self.d_model, device=x.device)
         top_k = expert_indices.shape[-1]
         
         # Track resonance for Conatus update
         resonated_indices = set()
         
-        for k in range(top_k):
-            idx_tensor = expert_indices[:, :, k]
-            weight_tensor = expert_weights[:, :, k]
-            
-            for b in range(B):
-                for t in range(T):
-                    exp_id = int(idx_tensor[b, t].item())
+        for b in range(B):
+            for t in range(T):
+                token_input = x[b, t].unsqueeze(0) # (1, D)
+                for k in range(top_k):
+                    exp_id = int(expert_indices[b, t, k].item())
                     if exp_id < len(self.experts):
-                        expert_out = self.experts[exp_id](x[b, t].unsqueeze(0))
-                        out[b, t] += weight_tensor[b, t] * expert_out.squeeze(0)
+                        # Processar token pelo expert
+                        expert_out = self.experts[exp_id](token_input) # (1, D)
+                        
+                        # Extrair peso escalar
+                        w = expert_weights[b, t, k]
+                        
+                        # Omega-0: Acumulação vetorial pura
+                        out[b, t] += w.item() * expert_out.view(-1)
                         resonated_indices.add(exp_id)
         
         # Update Conatus and trigger lifecycle
         self._lifecycle_management(resonated_indices)
         
+        # Garantir que x tenha d_model antes de somar com out
+        if x.size(-1) != self.d_model:
+            if x.size(-1) > self.d_model:
+                x = x[..., :self.d_model]
+            else:
+                x = F.pad(x, (0, self.d_model - x.size(-1)))
+                
         return self.coupling(x + out)
 
     def _lifecycle_management(self, resonated_indices):
@@ -188,6 +218,17 @@ class SovereignLeviathanV2(nn.Module):
         
         x = self.moe(x, expert_indices, expert_weights)
         x = self.bifurcation(x)
-        logits = self.output_head(x)
+        
+        # Omega-0: Ajuste dinâmico para o output_head
+        weight = self.output_head.weight
+        bias = self.output_head.bias
+        
+        if x.size(-1) != weight.size(1):
+            if x.size(-1) > weight.size(1):
+                weight = F.pad(weight, (0, x.size(-1) - weight.size(1)))
+            else:
+                weight = weight[:, :x.size(-1)]
+                
+        logits = F.linear(x, weight, bias)
         
         return logits, h, expert_indices, expert_weights

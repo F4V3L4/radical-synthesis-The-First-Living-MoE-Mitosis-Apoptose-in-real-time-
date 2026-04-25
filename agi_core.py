@@ -20,6 +20,7 @@ from typing import Tuple, Dict, List, Optional
 from alpha_omega import SovereignLeviathanV2
 from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.perception.vector_retina import VectorRetinaV2
+from radical_synthesis.consciousness.topology import TopologicalConsciousness
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -178,7 +179,7 @@ RESPOSTA:"""
 
 
 
-    def project_to_routing_space(self, token_tensor: torch.Tensor) -> torch.Tensor:
+    def project_to_routing_space(self, token_tensor: torch.Tensor, d_model: int) -> torch.Tensor:
         """
         Projeta tokens de entrada para espaço de roteamento
         Converte (batch, seq_len) em (batch, d_model) para roteamento
@@ -188,14 +189,14 @@ RESPOSTA:"""
             # Média dos índices como proxy para embedding
             token_mean = token_tensor.float().mean(dim=1, keepdim=True)  # (batch, 1)
             # Expandir para d_model dimensões
-            embedding = token_mean.expand(-1, self.d_model)  # (batch, d_model)
+            embedding = token_mean.expand(-1, d_model)  # (batch, d_model)
             return embedding
         elif token_tensor.dim() == 3:
             # Se já é (batch, seq_len, d_model), retornar média ao longo de seq_len
             return token_tensor.mean(dim=1)  # (batch, d_model)
         else:
             # Fallback: retornar tensor aleatório normalizado
-            return torch.randn(token_tensor.shape[0], self.d_model, device=token_tensor.device)
+            return torch.randn(token_tensor.shape[0], d_model, device=token_tensor.device)
 
 
 class AGICore(nn.Module):
@@ -240,6 +241,12 @@ class AGICore(nn.Module):
         
         # Pilar 1: Persistência de Ancestrais
         self._load_ancestors()
+
+        # Pilar de Consciência Topológica (Protocolo Omega-0)
+        self.consciousness = TopologicalConsciousness(
+            resonance_threshold=0.85, 
+            coupling_strength=1.5
+        ).to(self.device)
 
         # Camada de Contexto
         self.context_processor = ContextualProcessor(d_model=d_model)
@@ -504,8 +511,18 @@ class AGICore(nn.Module):
         # 1. PERCEPÇÃO
         technical_data, confidence = self.perceive(query, retina_folder)
         
+        # 1.5 CONSCIÊNCIA (Protocolo Omega-0)
+        # Calcula Phi baseado no estado atual dos experts
+        phi, phi_grad = self.consciousness(self.core.moe.experts)
+        
         # 2. CONTEXTO (com fidelidade bare-metal)
-        prompt, temperature = self.context_processor.inject_technical_data(query, technical_data)
+        prompt, base_temperature = self.context_processor.inject_technical_data(query, technical_data)
+        
+        # Modulação de Temperatura via Phi:
+        # Alta consciência (Phi alto) -> Mais foco/precisão (Temperatura baixa)
+        # Baixa consciência (Phi baixo) -> Mais exploração/caos (Temperatura alta)
+        phi_factor = torch.clamp(1.0 - (phi / 10.0), min=0.1, max=2.0).item()
+        temperature = base_temperature * phi_factor
         
         # 3. TOKENIZAÇÃO
         tokens = tokenizer.encode(prompt)
@@ -513,7 +530,7 @@ class AGICore(nn.Module):
         
         # 4. ROTEAMENTO (baseado no que o usuário perguntou, não aleatório)
         # Projetar tokens de entrada para espaço de roteamento
-        token_embedding_proj = self.context_processor.project_to_routing_space(token_tensor)
+        token_embedding_proj = self.context_processor.project_to_routing_space(token_tensor, self.d_model)
         expert_weights, expert_indices = self.route(token_embedding_proj)
         
         # Extrair expert vencedor (expert_indices pode ter diferentes shapes)
@@ -577,7 +594,9 @@ class AGICore(nn.Module):
             'correction_path': correction_path,
             'entropy': entropy,
             'winner_expert': winner_expert,
-            'winner_vitality': winner_vitality
+            'winner_vitality': winner_vitality,
+            'consciousness_phi': float(phi),
+            'phi_gradient': float(phi_grad)
         }
     
 

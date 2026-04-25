@@ -13,7 +13,19 @@ class FineStructureCoupling(nn.Module):
         mean = x.mean(dim=-1, keepdim=True)
         var = x.var(dim=-1, keepdim=True, unbiased=False)
         x_coupled = (x - mean) / torch.sqrt(var + self.alpha)
-        return self.gamma * x_coupled + self.beta
+        
+        # Omega-0: Ajuste dinâmico de parâmetros se a dimensão de entrada mudou
+        gamma = self.gamma
+        beta = self.beta
+        if x.size(-1) != gamma.size(0):
+            if x.size(-1) > gamma.size(0):
+                gamma = F.pad(gamma, (0, x.size(-1) - gamma.size(0)), value=1.0)
+                beta = F.pad(beta, (0, x.size(-1) - beta.size(0)), value=0.0)
+            else:
+                gamma = gamma[:x.size(-1)]
+                beta = beta[:x.size(-1)]
+                
+        return gamma * x_coupled + beta
 
 class BinarySymmetryLock(nn.Module):
     """Gate que valida entrada/saida em paridade perfeita (11:11)"""
@@ -41,7 +53,29 @@ class FeigenbaumBifurcation(nn.Module):
 
     def forward(self, x):
         entropy = -torch.mean(torch.sigmoid(x) * torch.log(torch.sigmoid(x) + 1e-9))
-        gate = torch.sigmoid(self.bifurcation_gate(x))
+        
+        # Omega-0: Ajuste dinâmico de dimensões para o gate de bifurcação
+        weight = self.bifurcation_gate.weight
+        bias = self.bifurcation_gate.bias
+        
+        if x.size(-1) != weight.size(1):
+            if x.size(-1) > weight.size(1):
+                # Padding de pesos para manter funcionalidade
+                weight = F.pad(weight, (0, x.size(-1) - weight.size(1)))
+                # Bias não muda pois a saída do linear depende de out_features (weight.size(0))
+            else:
+                weight = weight[:, :x.size(-1)]
+        
+        # Se a saída do linear (d_model original) for diferente da entrada atual
+        # precisamos ajustar para que a multiplicação (x * gate) funcione
+        gate = torch.sigmoid(F.linear(x, weight, bias))
+        
+        if gate.size(-1) != x.size(-1):
+            if gate.size(-1) > x.size(-1):
+                gate = gate[..., :x.size(-1)]
+            else:
+                gate = F.pad(gate, (0, x.size(-1) - gate.size(-1)))
+
         if entropy > self.threshold:
             x = x + (x * gate * self.delta)
         return x
@@ -55,8 +89,16 @@ class CymaticSculptor(nn.Module):
         self.phase = nn.Parameter(torch.randn(d_model))
 
     def forward(self, x):
+        # Omega-0: Ajuste dinâmico de fase
+        phase = self.phase
+        if x.size(-1) != phase.size(0):
+            if x.size(-1) > phase.size(0):
+                phase = F.pad(phase, (0, x.size(-1) - phase.size(0)))
+            else:
+                phase = phase[:x.size(-1)]
+                
         # Acoplamento aditivo harmônico. Modula a geometria sem destruir a semântica.
-        wave = torch.sin(self.latent_freq * x + self.phase)
+        wave = torch.sin(self.latent_freq * x + phase)
         return x + wave
 
 class InfiniteRadixMapping(nn.Module):
@@ -67,6 +109,25 @@ class InfiniteRadixMapping(nn.Module):
         self.fractal_expansion = nn.Linear(d_model, d_model)
 
     def forward(self, x):
+        # Omega-0: Ajuste dinâmico de expansão fractal
+        weight = self.fractal_expansion.weight
+        bias = self.fractal_expansion.bias
+        
+        if x.size(-1) != weight.size(1):
+            if x.size(-1) > weight.size(1):
+                weight = F.pad(weight, (0, x.size(-1) - weight.size(1)))
+            else:
+                weight = weight[:, :x.size(-1)]
+        
+        # Projetar e ajustar saída para somar com x
+        proj = F.linear(x, weight, bias)
+        
+        if proj.size(-1) != x.size(-1):
+            if proj.size(-1) > x.size(-1):
+                proj = proj[..., :x.size(-1)]
+            else:
+                proj = F.pad(proj, (0, x.size(-1) - proj.size(-1)))
+                
         # Expansão fractal usando Phi
-        expanded = self.fractal_expansion(x) * self.phi
+        expanded = proj * self.phi
         return x + expanded
