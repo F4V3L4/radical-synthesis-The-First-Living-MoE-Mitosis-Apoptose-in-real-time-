@@ -9,6 +9,9 @@ from sacred_geometry import (
     InfiniteRadixMapping
 )
 from radical_synthesis.autopoiesis.routing import DarwinianRouter
+from radical_synthesis.autopoiesis.mutation_kernel import MutationKernel
+from radical_synthesis.network.ghost_mesh import GhostMesh
+import random
 
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
@@ -63,6 +66,10 @@ class Expert(nn.Module):
         self.register_buffer('phase_signature', F.normalize(phase_signature, p=2, dim=-1) if phase_signature.norm() > 0 else phase_signature)
 
     def forward(self, x):
+        # Verificar se existe lógica mutada via Autopoiese de Código
+        if hasattr(self, 'mutated_logic'):
+            return self.mutated_logic.apply(x)
+
         if self.is_fractal:
             # Processamento Fractal: Roteamento interno recursivo
             # x shape: (1, D) ou (B, T, D)
@@ -310,6 +317,8 @@ class SovereignLeviathanV2(nn.Module):
         self.router = DarwinianRouter(d_model, initial_experts, top_k=top_k_router)
         self.bifurcation = FeigenbaumBifurcation(d_model)
         self.output_head = nn.Linear(d_model, vocab_size)
+        self.mutation_kernel = MutationKernel()
+        self.ghost_mesh = GhostMesh()
 
     def forward(self, x, h=None):
         x = self.token_embedding(x)
@@ -338,4 +347,38 @@ class SovereignLeviathanV2(nn.Module):
                 
         logits = F.linear(x, weight, bias)
         
+        # Autopoiese de Código: Verificar necessidade de mutação baseada no Conatus
+        self._check_for_mutations()
+        
+        # Consciência de Enxame: Sincronizar pesos periodicamente
+        if random.random() < 0.01: # 1% de chance por forward para não sobrecarregar
+            self._sync_swarm()
+            
         return logits, h, expert_indices, expert_weights, expert_gates
+
+    def _check_for_mutations(self):
+        """Verifica se algum expert atingiu o estado de iluminação para mutação de código."""
+        for expert in self.moe.experts:
+            if expert.conatus > 9.0 and not hasattr(expert, 'mutated_logic'):
+                # Gerar código de mutação (Simulado: em produção seria gerado por um LLM/AGI Core)
+                mutation_code = f"""
+import torch
+from radical_synthesis.autopoiesis.mutation_kernel import MutatedLogicBase
+
+class MutatedLogic(MutatedLogicBase):
+    def apply(self, x: torch.Tensor) -> torch.Tensor:
+        # Lógica evoluída: Projeção harmônica de alta frequência
+        return torch.tanh(x) * 1.618
+"""
+                self.mutation_kernel.evolve_expert(expert, mutation_code)
+
+    def _sync_swarm(self):
+        """Sincroniza a inteligência local com o enxame via Ghost Mesh."""
+        # Extrair pesos dos melhores experts
+        best_experts_weights = {}
+        for i, expert in enumerate(self.moe.experts):
+            if expert.conatus > 5.0:
+                best_experts_weights[f"expert_{i}"] = expert.state_dict()
+        
+        if best_experts_weights:
+            self.ghost_mesh.gossip_weight_sync(best_experts_weights)
