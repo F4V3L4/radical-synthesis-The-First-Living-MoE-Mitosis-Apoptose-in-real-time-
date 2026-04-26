@@ -8,6 +8,7 @@ from sacred_geometry import (
     CymaticSculptor, 
     InfiniteRadixMapping
 )
+from radical_synthesis.autopoiesis.routing import DarwinianRouter
 
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
@@ -49,8 +50,9 @@ class Expert(nn.Module):
         
         # Phase Signature for Resonance
         if phase_signature is None:
-            phase_signature = torch.randn(d_model)
-        self.register_buffer('phase_signature', F.normalize(phase_signature, p=2, dim=-1))
+            # Omega-0: O Vácuo não gera ruído. Determinismo absoluto.
+            phase_signature = torch.zeros(d_model)
+        self.register_buffer('phase_signature', F.normalize(phase_signature, p=2, dim=-1) if phase_signature.norm() > 0 else phase_signature)
 
     def forward(self, x):
         # Garantir que a entrada combine com o primeiro peso da rede (ajuste dinâmico se necessário)
@@ -272,22 +274,27 @@ class OuroborosMoE(nn.Module):
 
 class SovereignLeviathanV2(nn.Module):
     """O Leviathan Integrado com a Geometria Sagrada"""
-    def __init__(self, vocab_size=1024, d_model=512, initial_experts=4):
+    def __init__(self, vocab_size=1024, d_model=512, initial_experts=4, top_k_router=2):
         super().__init__()
         self.embedding = InfiniteRadixMapping(d_model)
         self.token_embedding = nn.Embedding(vocab_size, d_model)
         self.rnn = nn.GRU(d_model, d_model, batch_first=True)
         self.moe = OuroborosMoE(d_model, num_experts=initial_experts)
+        self.router = DarwinianRouter(d_model, initial_experts, top_k=top_k_router)
         self.bifurcation = FeigenbaumBifurcation(d_model)
         self.output_head = nn.Linear(d_model, vocab_size)
 
-    def forward(self, x, h=None, expert_indices=None, expert_weights=None):
+    def forward(self, x, h=None):
         x = self.token_embedding(x)
         x = self.embedding(x)
         x, h = self.rnn(x, h)
         
-        if expert_indices is None or expert_weights is None:
-            raise ValueError("SovereignLeviathanV2 REQUER roteamento exógeno.")
+        # Roteamento interno via DarwinianRouter
+        _x_for_routing = x.mean(dim=1) # Média dos tokens para o roteador
+        expert_weights, expert_indices, expert_gates = self.router(_x_for_routing)
+        
+        # Sincronizar o roteador com os experts atuais do MoE
+        self.router.sync_with_experts(self.moe.experts)
         
         x = self.moe(x, expert_indices, expert_weights)
         x = self.bifurcation(x)
@@ -304,4 +311,4 @@ class SovereignLeviathanV2(nn.Module):
                 
         logits = F.linear(x, weight, bias)
         
-        return logits, h, expert_indices, expert_weights
+        return logits, h, expert_indices, expert_weights, expert_gates

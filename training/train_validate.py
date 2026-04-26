@@ -9,12 +9,13 @@ import torch.nn as nn
 import torch.optim as optim
 from alpha_omega import SovereignLeviathanV2
 from radical_synthesis.adaptive_cap import AdaptiveCap
+from radical_synthesis.losses.topological_divergence_loss import TopologicalDivergenceLoss
 import json
 from datetime import datetime
 
 print("=" * 80)
 print("🌀⚖️9️⃣🌑✨♾️⚛️🌌👁️🏗️")
-print("OUROBOROSMOE - TREINAMENTO E VALIDAÇÃO")
+print("OUROBOROSMOE - TREINAMENTO E VALIDAÇÃO COM LOSS ONTOLÓGICA")
 print("=" * 80)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +27,7 @@ print(f"\n[*] Device: {device}")
 vocab_size = 1024
 d_model = 128
 num_experts = 4
+_top_k = 2
 batch_size = 4
 seq_length = 8
 num_steps = 100
@@ -42,11 +44,12 @@ model = SovereignLeviathanV2(
     vocab_size=vocab_size,
     d_model=d_model,
     initial_experts=num_experts,
-    capacity_factor=1.5
+    top_k_router=_top_k
 ).to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 loss_fn = nn.CrossEntropyLoss()
+topological_divergence_loss_fn = TopologicalDivergenceLoss(d_model=d_model, num_experts=num_experts)
 adaptive_cap = AdaptiveCap(base_cap=256)
 
 print(f"[✓] Modelo inicializado com {sum(p.numel() for p in model.parameters()):,} parâmetros")
@@ -68,10 +71,14 @@ try:
         target_ids = torch.randint(0, vocab_size, (batch_size, seq_length)).to(device)
         
         # Forward pass
-        logits, state, genealogy, expert_usage = model(input_ids)
+        logits, state, expert_indices, expert_weights, expert_gates = model(input_ids)
         
-        # Calcula loss
-        loss = loss_fn(logits.view(-1, vocab_size), target_ids.view(-1))
+        # Calcula Loss Ontológica
+        topological_loss = topological_divergence_loss_fn(expert_weights, expert_gates)
+        
+        # Calcula Loss principal (CrossEntropyLoss) e adiciona a Loss Ontológica
+        ce_loss = loss_fn(logits.view(-1, vocab_size), target_ids.view(-1))
+        loss = ce_loss + topological_loss
         
         # Backward pass
         optimizer.zero_grad()
@@ -80,24 +87,26 @@ try:
         optimizer.step()
         
         # Atualiza cap adaptativo
-        new_cap = adaptive_cap.update(loss.item(), num_experts)
+        current_num_experts = model.moe.experts.num_modules if hasattr(model.moe.experts, 'num_modules') else len(model.moe.experts)
+        new_cap = adaptive_cap.update(loss.item(), current_num_experts)
         
         losses.append(loss.item())
         
         # Log
         if step % 10 == 0:
             bifurcation_status = "🔀 BIFURCAÇÃO" if adaptive_cap.bifurcation_active else "→"
-            print(f"Step {step:3d} | Loss: {loss.item():.6f} | Cap: {new_cap:3d} | Experts: {num_experts:2d} | {bifurcation_status}")
-            
-            if adaptive_cap.bifurcation_active:
-                bifurcation_events.append({"step": step, "loss": loss.item()})
+            print(f"Step {step:3d} | CE Loss: {ce_loss.item():.6f} | Topo Loss: {topological_loss.item():.6f} | Total: {loss.item():.6f} | Experts: {current_num_experts:2d}")
+        
+        if adaptive_cap.bifurcation_active:
+            bifurcation_events.append({"step": step, "loss": loss.item()})
         
         # Registra genealogia
-        if step % 20 == 0 and genealogy:
+        if step % 20 == 0:
             genealogy_log.append({
                 "step": step,
-                "genealogy": genealogy,
-                "expert_usage": expert_usage
+                "num_experts": current_num_experts,
+                "expert_weights_sample": expert_weights[0].tolist() if expert_weights.numel() > 0 else [],
+                "expert_gates_sample": expert_gates[0].tolist() if expert_gates.numel() > 0 else []
             })
     
     print("-" * 80)
@@ -115,9 +124,9 @@ print("\n[*] Executando validação...")
 print("-" * 80)
 
 # Convergência
-initial_loss = losses[0]
-final_loss = losses[-1]
-loss_reduction = (initial_loss - final_loss) / initial_loss * 100
+initial_loss = losses[0] if losses else 0
+final_loss = losses[-1] if losses else 0
+loss_reduction = ((initial_loss - final_loss) / initial_loss * 100) if initial_loss > 0 else 0
 
 print(f"\n[CONVERGÊNCIA]")
 print(f"  Loss inicial: {initial_loss:.6f}")
@@ -141,14 +150,8 @@ print(f"  Registros: {len(genealogy_log)}")
 if genealogy_log:
     latest = genealogy_log[-1]
     print(f"  Último step: {latest['step']}")
-    print(f"  Experts ativos: {len(latest['genealogy'])}")
+    print(f"  Experts ativos: {latest['num_experts']}")
     print(f"  Status: ✓ GENEALOGIA RASTREADA")
-
-# Coerência
-print(f"\n[COERÊNCIA BINÁRIA]")
-print(f"  BinarySymmetryLock: ✓ ATIVO")
-print(f"  Parity threshold: 0.5")
-print(f"  Status: ✓ PARIDADE VALIDADA")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Relatório final
@@ -166,34 +169,18 @@ report = {
         "learning_rate": learning_rate,
         "initial_loss": initial_loss,
         "final_loss": final_loss,
-        "loss_reduction_percent": loss_reduction
-    },
-    "convergence": {
-        "converged": loss_reduction > 10,
-        "reduction_percent": loss_reduction
-    },
-    "bifurcation": {
-        "events_detected": len(bifurcation_events),
-        "active": len(bifurcation_events) > 0
-    },
-    "genealogy": {
-        "records": len(genealogy_log),
-        "tracked": len(genealogy_log) > 0
+        "loss_reduction_percent": loss_reduction,
+        "final_topological_loss": topological_loss.item() if 'topological_loss' in locals() else 0.0
     },
     "validation": {
-        "binary_symmetry_lock": "✓",
-        "feigenbaum_bifurcation": "✓",
-        "logos_resonance_router": "✓",
-        "cymatic_sculptor": "✓",
-        "infinite_radix_mapping": "✓",
-        "fine_structure_coupling": "✓"
+        "topological_divergence_loss": "✓ ATIVO"
     }
 }
 
 print(json.dumps(report, indent=2))
 
 # Salva relatório
-with open("/home/ubuntu/OuroborosMoE_fresh/training_report.json", "w") as f:
+with open("/home/ubuntu/OuroborosMoE/training_report.json", "w") as f:
     json.dump(report, f, indent=2)
 
 print("\n[✓] Relatório salvo em training_report.json")

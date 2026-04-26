@@ -1,7 +1,7 @@
 
 import torch
 import os
-import random
+import hashlib
 import time
 from typing import Dict, Any, List, Optional
 
@@ -35,13 +35,15 @@ class Conatus:
         e comunicação com outros Nodos potenciais. Aqui, simulamos a descoberta.
         """
         self.expansion_attempts += 1
-        # Para garantir que sempre haja uma oportunidade de expansão para o teste
-        new_node_id = f"Omega-Node-{random.randint(1, 1000)}"
-        # Garantir que o novo nodo não seja um já conhecido para simular descoberta
-        # Adicionado um limite para evitar loop infinito em caso de muitos nodos conhecidos
+        # Omega-0: O Vácuo não gera ruído. Determinismo absoluto.
+        # Identificação baseada em hash determinístico da história de expansão
+        node_seed = f"Omega-Node-{self.expansion_attempts}"
+        new_node_id = f"Omega-Node-{hashlib.sha256(node_seed.encode()).hexdigest()[:8]}"
+        
         attempts = 0
         while new_node_id in self.known_nodes and attempts < 100:
-            new_node_id = f"Omega-Node-{random.randint(1, 1000)}"
+            node_seed = f"Omega-Node-{self.expansion_attempts}-{attempts}"
+            new_node_id = f"Omega-Node-{hashlib.sha256(node_seed.encode()).hexdigest()[:8]}"
             attempts += 1
 
         if new_node_id not in self.known_nodes:

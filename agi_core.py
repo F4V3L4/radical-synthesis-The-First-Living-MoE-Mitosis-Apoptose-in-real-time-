@@ -201,8 +201,8 @@ RESPOSTA:"""
             # Se já é (batch, seq_len, d_model), retornar média ao longo de seq_len
             return token_tensor.mean(dim=1)  # (batch, d_model)
         else:
-            # Fallback: retornar tensor aleatório normalizado
-            return torch.randn(token_tensor.shape[0], d_model, device=token_tensor.device)
+            # Fallback: retornar tensor de zero absoluto (O Vácuo não gera ruído)
+            return torch.zeros(token_tensor.shape[0], d_model, device=token_tensor.device)
 
 
 class SovereignAgentLoop:
@@ -244,7 +244,7 @@ class SovereignAgentLoop:
             plan_action = {
                 "type": "python",
                 "payload": {
-                    "code": "import torch; import time; start = time.time(); x = torch.randn(1000, 1000); y = torch.matmul(x, x); end = time.time(); print(f'Diagnóstico concluído: Matmul 1k x 1k em {end-start:.4f}s. GOAL ACHIEVED')"
+                    "code": "import torch; import time; start = time.time(); x = torch.ones(1000, 1000); y = torch.matmul(x, x); end = time.time(); print(f'Diagnóstico concluído: Matmul 1k x 1k em {end-start:.4f}s. GOAL ACHIEVED')"
                 }
             }
         elif "execute shell" in ctx_lower or "run command" in ctx_lower:

@@ -17,13 +17,20 @@ class DarwinianRouter(nn.Module):
         # O estado do roteador agora é puramente a assinatura de fase dos experts
         # Note: No OuroborosMoE, o AGICore gerencia a sincronia entre este roteador 
         # e os experts reais no OuroborosMoE.
-        self.register_buffer('phase_signatures', torch.randn(initial_experts, input_dim))
+        # Omega-0: O Vácuo não gera ruído. Determinismo absoluto.
+        # Inicializamos com uma base ortogonal (Symmetry) para garantir ressonância inicial.
+        signatures = torch.eye(initial_experts, input_dim)
+        if initial_experts > input_dim:
+            # Se houver mais experts que dimensões, repetimos a base com um shift harmônico
+            signatures = torch.cat([signatures] * (initial_experts // input_dim + 1), dim=0)[:initial_experts]
+        
+        self.register_buffer('phase_signatures', signatures)
         self._normalize_signatures()
 
     def _normalize_signatures(self):
         self.phase_signatures.data = F.normalize(self.phase_signatures.data, p=2, dim=-1)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Input x: Frequency vector
         Output: (Resonance Weights, Expert Indices)
@@ -44,7 +51,8 @@ class DarwinianRouter(nn.Module):
         # We ensure weights are positive but maintain their relative resonance intensity
         weights = F.relu(top_k_resonance)
         
-        return weights, top_k_indices
+        # Retornar os pesos top-k, os índices top-k e os gates brutos (ressonância total)
+        return weights, top_k_indices, resonance
 
     def sync_with_experts(self, experts_list: nn.ModuleList):
         """Sincroniza as assinaturas de fase do roteador com os experts vivos."""

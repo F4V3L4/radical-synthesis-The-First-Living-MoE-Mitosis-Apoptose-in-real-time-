@@ -187,8 +187,10 @@ class OuroborosMoELayer(nn.Module):
         with torch.no_grad():
             for param in clone.parameters():
                 if param.requires_grad:
-                    noise = torch.randn_like(param) * self.mutation_sigma * param.data.norm()
-                    param.add_(noise)
+                    # Omega-0: O Vácuo não gera ruído. A mutação deve ser estrutural, não randômica.
+                    # Usamos uma perturbação baseada na própria geometria do peso (Conatus)
+                    mutation = torch.sin(param.data * 144.0) * self.mutation_sigma * param.data.norm()
+                    param.add_(mutation)
 
         self.experts.append(clone)
         self.genealogy.register_birth(clone.id, parent.id, step)
@@ -205,7 +207,8 @@ class OuroborosMoELayer(nn.Module):
             for expert in self.experts:
                 for param in expert.parameters():
                     if param.requires_grad:
-                        param.data += torch.randn_like(param.data) * 0.02
+                        # Omega-0: Shift categórico via harmônica 432Hz (Cimática)
+                        param.data += torch.cos(param.data * 432.0) * 0.02
 
     def print_status(self) -> None:
         phi = self._compute_phi()
