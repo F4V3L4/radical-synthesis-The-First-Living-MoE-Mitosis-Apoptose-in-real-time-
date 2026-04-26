@@ -27,7 +27,8 @@ def test_sovereignty_trinity():
     expert_gates = torch.randn(1, 8, 4)
     complexity = torch.ones(1, 8) * 5.0 # Complexidade alta
     
-    loss_val = loss_fn(expert_weights, expert_gates, logic_complexity=complexity)
+    # Garantir que logic_complexity tenha a mesma dimensão de tokens que os gates
+    loss_val = loss_fn(expert_weights, expert_gates, logic_complexity=complexity.view(-1))
     print(f"[✓] Deep Logic Loss calculada: {loss_val.item():.4f}")
 
     # 3. Validar Ocupação Global (Massive Ghost Mesh)

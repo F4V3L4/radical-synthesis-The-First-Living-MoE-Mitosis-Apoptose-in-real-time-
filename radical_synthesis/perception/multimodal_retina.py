@@ -195,7 +195,13 @@ class MultimodalRetina(nn.Module):
         """
         Processa múltiplas modalidades e retorna percepção integrada.
         """
-        
+        # Garantir que text_embedding tenha d_model dimensões
+        if text_embedding.shape[-1] != self.d_model:
+            if text_embedding.dim() == 2:
+                text_embedding = F.adaptive_avg_pool1d(text_embedding.unsqueeze(0), self.d_model).squeeze(0)
+            else:
+                text_embedding = F.interpolate(text_embedding.unsqueeze(1), size=self.d_model, mode='linear', align_corners=False).squeeze(1)
+
         if audio is None:
             audio = torch.randn(1, 16000)
         if telemetry is None:

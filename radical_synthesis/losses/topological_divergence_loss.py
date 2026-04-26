@@ -53,8 +53,9 @@ class TopologicalDivergenceLoss(nn.Module):
             expert_gates = expert_gates.unsqueeze(1) # (batch * seq_len, 1, num_experts)
 
         # Flatten para (total_tokens, num_experts)
-        flat_expert_weights = expert_weights.view(-1, self.num_experts)
-        flat_expert_gates = expert_gates.view(-1, self.num_experts)
+        # Omega-0: Garantir que o redimensionamento seja robusto
+        flat_expert_weights = expert_weights.reshape(-1, self.num_experts)
+        flat_expert_gates = expert_gates.reshape(-1, self.num_experts)
 
         # 1. Load Balancing Loss (Penalidade de Balanceamento de Carga)
         # Objetivo: Incentivar que todos os experts sejam usados igualmente.
