@@ -95,11 +95,14 @@ class Expert(nn.Module):
         return self.sculptor(x)
 
     def update_conatus(self, resonated: bool, decay=0.01, growth=0.1):
+        # Decaimento Entrópico: Experts mais velhos perdem conatus mais rápido se não ressonarem
+        # Simula a necessidade de utilidade constante para a auto-preservação
         if resonated:
             self.conatus += growth
         else:
-            self.conatus -= decay
-        self.conatus = torch.clamp(self.conatus, min=0.0)
+            # Penalidade por inatividade aumenta com o tempo (simulado aqui por um fator fixo de entropia)
+            self.conatus -= decay * 1.5 
+        self.conatus = torch.clamp(self.conatus, min=0.0, max=10.0)
 
 class OuroborosMoE(nn.Module):
     """A Matriz de Especialistas com Estabilidade alpha e Evolução Darwiniana"""

@@ -42,6 +42,10 @@ class DarwinianRouter(nn.Module):
         # (Batch, Dim) @ (Dim, Experts) -> (Batch, Experts)
         resonance = torch.matmul(x_norm, self.phase_signatures.t())
         
+        # Amplificação de Ressonância (Temperatura de Vórtice)
+        # Aumenta a sensibilidade para evitar gradientes nulos
+        resonance = resonance * 5.0 
+        
         # Phase-Lock Selection: Top-K resonance
         # We do NOT use Softmax. We use raw resonance magnitude for weights.
         k = min(self.top_k, resonance.size(-1))
@@ -49,7 +53,8 @@ class DarwinianRouter(nn.Module):
         
         # Absolute Magnitude Weights (Zero Probability)
         # We ensure weights are positive but maintain their relative resonance intensity
-        weights = F.relu(top_k_resonance)
+        # Usamos Softplus para garantir gradiente contínuo e positivo
+        weights = F.softplus(top_k_resonance)
         
         # Retornar os pesos top-k, os índices top-k e os gates brutos (ressonância total)
         return weights, top_k_indices, resonance

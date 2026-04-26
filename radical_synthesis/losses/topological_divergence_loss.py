@@ -13,7 +13,7 @@ class TopologicalDivergenceLoss(nn.Module):
     2. Sparsity Loss: Incentiva a ativação esparsa, evitando que muitos Experts sejam ativados
        para uma única entrada, mas de forma controlada para não induzir colapso.
     """
-    def __init__(self, d_model: int, num_experts: int, lambda_load: float = 0.01, lambda_sparsity: float = 0.001, lambda_thermo: float = 0.005):
+    def __init__(self, d_model: int, num_experts: int, lambda_load: float = 0.1, lambda_sparsity: float = 0.01, lambda_thermo: float = 0.05):
         super().__init__()
         self.d_model = d_model
         self.num_experts = num_experts
@@ -76,10 +76,9 @@ class TopologicalDivergenceLoss(nn.Module):
         expert_usage_frequency = F.normalize(expert_usage_frequency, p=1, dim=0) # Normaliza para soma 1
 
         # Covariância (aproximada) para penalizar desequilíbrio
-        # Penaliza se P_i * F_i for muito diferente de uma distribuição uniforme
-        load_balancing_loss = (mean_expert_prob * expert_usage_frequency).sum() * self.num_experts
-        # Queremos maximizar isso, então penalizamos o negativo
-        load_balancing_loss = -load_balancing_loss
+        # Usamos o erro quadrático médio em relação à distribuição uniforme (1/N)
+        uniform = torch.ones_like(mean_expert_prob) / self.num_experts
+        load_balancing_loss = F.mse_loss(mean_expert_prob, uniform) + F.mse_loss(expert_usage_frequency, uniform)
 
         # 2. Sparsity Loss (Penalidade de Esparsidade Controlada)
         # Objetivo: Incentivar que poucos experts sejam ativados por token, mas de forma controlada.
