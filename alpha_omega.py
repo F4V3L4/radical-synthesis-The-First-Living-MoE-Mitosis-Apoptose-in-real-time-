@@ -11,6 +11,7 @@ from sacred_geometry import (
 from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.autopoiesis.mutation_kernel import MutationKernel
 from radical_synthesis.network.ghost_mesh import GhostMesh
+from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
 import random
 
 class Expert(nn.Module):
@@ -317,7 +318,12 @@ class SovereignLeviathanV2(nn.Module):
         self.router = DarwinianRouter(d_model, initial_experts, top_k=top_k_router)
         self.bifurcation = FeigenbaumBifurcation(d_model)
         self.output_head = nn.Linear(d_model, vocab_size)
-        self.mutation_kernel = MutationKernel()
+        
+        # Blindagem de Linhagem Criptográfica
+        self.lattice_crypto = LatticeCrypto()
+        self.public_key, self.private_key = self.lattice_crypto.generate_keypair()
+        
+        self.mutation_kernel = MutationKernel(lattice_crypto=self.lattice_crypto)
         self.ghost_mesh = GhostMesh()
 
     def forward(self, x, h=None):

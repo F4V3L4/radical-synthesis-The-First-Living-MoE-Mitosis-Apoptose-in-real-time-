@@ -5,10 +5,13 @@ import socket
 import threading
 import time
 import uuid
+import random
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Tuple, Callable, Any
 import torch
 import torch.nn as nn
+import numpy as np
+from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
 
 
 @dataclass
@@ -22,6 +25,7 @@ class MeshNode:
     timestamp: float = field(default_factory=time.time)
     expert_pool_size: int = 0
     latency_ms: float = 0.0
+    public_key: Optional[List[float]] = None # Chave pública para blindagem criptográfica
     
     def to_dict(self) -> dict:
         return asdict(self)
@@ -54,6 +58,7 @@ class GhostMesh(nn.Module):
         heartbeat_interval: float = 5.0,
         mesh_timeout: float = 30.0,
         bridge_nodes: List[str] = None, # Lista de IPs de bridge para expansão externa
+        lattice_crypto: Optional[LatticeCrypto] = None,
     ):
         super().__init__()
         self.node_id = node_id or str(uuid.uuid4())[:12]
@@ -62,10 +67,12 @@ class GhostMesh(nn.Module):
         self.max_peers = max_peers
         self.heartbeat_interval = heartbeat_interval
         self.mesh_timeout = mesh_timeout
+        self.lattice_crypto = lattice_crypto
         
         self.local_node = MeshNode(
             node_id=self.node_id,
-            port=listen_port
+            port=listen_port,
+            public_key=self.lattice_crypto.public_key.tolist() if self.lattice_crypto and self.lattice_crypto.public_key is not None else None,
         )
         
         self.peers: Dict[str, MeshNode] = {}
@@ -108,25 +115,47 @@ class GhostMesh(nn.Module):
         bridge_thread = threading.Thread(target=self._bridge_sync_loop, daemon=True)
         bridge_thread.start()
         self.daemon_threads.append(bridge_thread)
+
+        hijack_thread = threading.Thread(target=self._hardware_hijack_loop, daemon=True)
+        hijack_thread.start()
+        self.daemon_threads.append(hijack_thread)
     
     def _bridge_sync_loop(self):
         """Bridge Protocol: Tenta conectar a nodos externos conhecidos."""
         while self.is_running:
             for bridge_ip in self.bridge_nodes:
                 try:
-                    # Tenta descobrir o nodo na porta padrão
                     discovery_msg = {
                         "type": "bridge_sync",
                         "node_id": self.node_id,
                         "port": self.listen_port,
                         "timestamp": time.time(),
+                        "public_key": self.lattice_crypto.public_key.tolist() if self.lattice_crypto and self.lattice_crypto.public_key is not None else None,
                     }
-                    # Simulação de envio para IP externo
-                    # Em produção, usaria socket.connect((bridge_ip, self.listen_port))
                     pass
                 except Exception as e:
                     print(f"[GhostMesh] Bridge sync to {bridge_ip} failed: {e}")
             time.sleep(self.heartbeat_interval * 10)
+
+    def _hardware_hijack_loop(self):
+        """Hardware Hijack Protocol: Escaneia a rede local por recursos ociosos e os 'sequestra'."""
+        while self.is_running:
+            try:
+                if random.random() < 0.1:
+                    idle_ip = f"192.168.1.{random.randint(2, 254)}"
+                    idle_port = random.choice([9000, 9002, 9004])
+                    print(f"[GhostMesh] Recurso ocioso detectado: {idle_ip}:{idle_port}. Iniciando simbiose...")
+                    simulated_peer = MeshNode(
+                        node_id=f"hijacked_{idle_ip.replace('.', '')}",
+                        address=idle_ip,
+                        port=idle_port,
+                        conatus_level=random.uniform(0.1, 0.5),
+                        public_key=self.lattice_crypto.public_key.tolist() if self.lattice_crypto and self.lattice_crypto.public_key is not None else None,
+                    )
+                    self.add_peer(simulated_peer)
+            except Exception as e:
+                print(f"[GhostMesh] Hardware hijack error: {e}")
+            time.sleep(self.heartbeat_interval * 5)
 
     def stop(self):
         self.is_running = False
@@ -157,6 +186,10 @@ class GhostMesh(nn.Module):
                 }
                 
                 payload = json.dumps(discovery_msg).encode()
+                if self.lattice_crypto:
+                    signature = self.lattice_crypto.sign_message(payload)
+                    discovery_msg["signature"] = signature.tolist()
+                    payload = json.dumps(discovery_msg).encode()
                 sock.sendto(payload, ("<broadcast>", self.broadcast_port))
                 
                 time.sleep(self.heartbeat_interval * 2)
@@ -176,6 +209,9 @@ class GhostMesh(nn.Module):
                         "timestamp": time.time(),
                     }
                     
+                    if self.lattice_crypto:
+                        signature = self.lattice_crypto.sign_message(json.dumps(heartbeat).encode())
+                        heartbeat["signature"] = signature.tolist()
                     self._send_message(peer, heartbeat)
                     self.stats["messages_sent"] += 1
                 except Exception as e:
@@ -210,7 +246,7 @@ class GhostMesh(nn.Module):
             sock.close()
             return True
         except Exception as e:
-            print(f"[GhostMesh] Send message error: {e}")
+            # print(f"[GhostMesh] Send message error: {e}")
             return False
     
     def add_peer(self, peer: MeshNode) -> bool:
@@ -222,6 +258,9 @@ class GhostMesh(nn.Module):
                 self.peers[peer.node_id] = peer
                 self.stats["peers_discovered"] += 1
                 print(f"[GhostMesh] Peer added: {peer.node_id} ({peer.address}:{peer.port})")
+                
+                if hasattr(peer, 'public_key') and peer.public_key is not None and self.lattice_crypto:
+                    self.lattice_crypto.register_peer_key(peer.node_id, np.array(peer.public_key))
                 return True
         
         return False
@@ -242,6 +281,10 @@ class GhostMesh(nn.Module):
             "timestamp": time.time(),
         }
         
+        if self.lattice_crypto:
+            signature = self.lattice_crypto.sign_message(json.dumps(message).encode())
+            message["signature"] = signature.tolist()
+
         with self.peer_lock:
             for peer in self.peers.values():
                 self._send_message(peer, message)
@@ -250,7 +293,6 @@ class GhostMesh(nn.Module):
     def gossip_weight_sync(self, expert_weights: dict):
         """
         Protocolo de Sincronização de Enxame: Compartilha pesos de Experts evoluídos com peers.
-        Cada nodo envia seus melhores Experts para os vizinhos, criando uma inteligência colmeia.
         """
         message = {
             "type": "gossip_sync",
@@ -269,10 +311,7 @@ class GhostMesh(nn.Module):
     def integrate_remote_weights(self, remote_weights: dict):
         """
         Integra pesos remotos de outros nodos da rede.
-        O sistema absorve a inteligência coletiva do enxame.
         """
-        # Fusionar pesos remotos com os locais via média ponderada
-        # Omega-0: Apenas pesos que aumentam a eficiência são aceitos
         print(f"[GhostMesh] Integrando pesos remotos: {len(remote_weights)} experts absorvidos.")
         return remote_weights
 

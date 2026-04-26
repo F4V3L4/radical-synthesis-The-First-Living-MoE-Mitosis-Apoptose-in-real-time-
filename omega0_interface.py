@@ -31,7 +31,11 @@ class Omega0Interface:
         )
         layout["main"].split_row(
             Layout(name="vortex", ratio=2),
+            Layout(name="side_panel", ratio=1),
+        )
+        layout["side_panel"].split_column(
             Layout(name="telemetry", ratio=1),
+            Layout(name="ghost_mesh", ratio=1),
         )
         return layout
 
@@ -48,6 +52,7 @@ class Omega0Interface:
         table.add_column("ID", justify="center", style="cyan")
         table.add_column("CONATUS", justify="center")
         table.add_column("TIPO", justify="center")
+        table.add_column("MUTAÇÃO", justify="center")
         table.add_column("STATUS", justify="center")
         table.add_column("RESSONÂNCIA", justify="right")
 
@@ -56,17 +61,20 @@ class Omega0Interface:
             for i, exp in enumerate(experts):
                 conatus = exp.conatus.item()
                 is_fractal = "FRACTAL" if getattr(exp, 'is_fractal', False) else "LINEAR"
+                has_mutation = "🧬 SIM" if hasattr(exp, 'mutated_logic') else "❌ NÃO"
                 status = "🔥 ATIVO" if conatus > 0.2 else "💀 APOPTOSI"
                 resonance_val = int(min(conatus * 5, 20))
                 resonance = "█" * resonance_val
                 
                 style = "bold green" if conatus > 1.0 else "yellow"
                 if is_fractal == "FRACTAL": style = "bold magenta"
+                if has_mutation == "🧬 SIM": style = "bold cyan"
                 
                 table.add_row(
                     f"{i:02d}", 
                     f"{conatus:.2f}", 
                     is_fractal, 
+                    has_mutation,
                     status, 
                     Text(resonance, style=style)
                 )
@@ -75,7 +83,8 @@ class Omega0Interface:
             for i in range(8):
                 conatus = random.uniform(0.5, 3.5)
                 is_fractal = "FRACTAL" if conatus > 3.0 else "LINEAR"
-                table.add_row(f"{i:02d}", f"{conatus:.2f}", is_fractal, "🔥 ATIVO", Text("█" * int(random.random()*10), style="green"))
+                has_mutation = "🧬 SIM" if random.random() > 0.8 else "❌ NÃO"
+                table.add_row(f"{i:02d}", f"{conatus:.2f}", is_fractal, has_mutation, "🔥 ATIVO", Text("█" * int(random.random()*10), style="green"))
         
         return Panel(table, border_style="cyan")
 
@@ -97,9 +106,26 @@ class Omega0Interface:
             
         table.add_row("Latência L1", f"{random.uniform(0.8, 1.2):.2f}ns")
         table.add_row("Custo Termo", f"{random.uniform(1.1, 1.4):.3f}W")
-        table.add_row("Ghost Mesh", "CONNECTED (12 Nodos)")
-
         return Panel(table, border_style="green")
+
+    def get_ghost_mesh_view(self) -> Panel:
+        table = Table(title="🕸️ GHOST MESH (P2P)", expand=True)
+        table.add_column("NODO ID", style="cyan")
+        table.add_column("CONATUS", justify="right")
+        table.add_column("STATUS", justify="center")
+
+        if self.agi and hasattr(self.agi.core, 'ghost_mesh'):
+            peers = self.agi.core.ghost_mesh.get_peers()
+            for peer in peers:
+                table.add_row(peer.node_id[:8], f"{peer.conatus_level:.2f}", "🟢 SYNC")
+            if not peers:
+                table.add_row("Aguardando...", "-", "🟡 LISTEN")
+        else:
+            # Simulação
+            for i in range(3):
+                table.add_row(f"hijacked_{random.randint(100,999)}", f"{random.uniform(0.1, 2.0):.2f}", "🟢 SYNC")
+
+        return Panel(table, border_style="magenta")
 
     def get_footer(self) -> Panel:
         msg = "DIRETRIZ PRIMÁRIA: RADICAL SYNTHESIS | OPERADOR: E0 | STATUS: ASCENSÃO"
@@ -113,6 +139,7 @@ class Omega0Interface:
                     layout["header"].update(self.get_header())
                     layout["vortex"].update(self.get_vortex_view())
                     layout["telemetry"].update(self.get_telemetry_view())
+                    layout["ghost_mesh"].update(self.get_ghost_mesh_view())
                     layout["footer"].update(self.get_footer())
                     time.sleep(0.25)
         except KeyboardInterrupt:

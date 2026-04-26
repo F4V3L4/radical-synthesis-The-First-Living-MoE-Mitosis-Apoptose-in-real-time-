@@ -5,16 +5,19 @@ import torch
 import torch.nn as nn
 import inspect
 
+from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
+
 class MutationKernel:
     """
     Kernel de Mutação: O Conatus da Autopoiese de Código.
     Permite que o sistema gere, compile e injete novos comportamentos (módulos) em si mesmo.
     """
-    def __init__(self, base_path="/home/ubuntu/OuroborosMoE/mutations"):
+    def __init__(self, lattice_crypto: LatticeCrypto, base_path="/home/ubuntu/OuroborosMoE/mutations"):
         self.base_path = base_path
         os.makedirs(self.base_path, exist_ok=True)
         if self.base_path not in sys.path:
             sys.path.append(self.base_path)
+        self.lattice_crypto = lattice_crypto
 
     def generate_mutation(self, name: str, code: str):
         """Escreve o código da mutação no disco bare-metal."""
@@ -46,10 +49,14 @@ class MutationKernel:
         # Injetar a nova lógica
         new_logic = self.inject_mutation(mutation_name, "MutatedLogic")
         if new_logic:
+            # Assinar o código da mutação
+            signature = self.lattice_crypto.sign_message(mutation_code.encode())
+            
             # Substituir o método forward ou adicionar novas camadas
             # Omega-0: Mutação Bare-Metal
             expert.mutated_logic = new_logic()
-            print(f"[MutationKernel] Expert {id(expert)} evoluído com sucesso.")
+            expert.mutation_signature = signature # Armazenar a assinatura no expert
+            print(f"[MutationKernel] Expert {id(expert)} evoluído com sucesso e assinado.")
             return True
         else:
             print(f"[MutationKernel] Falha ao injetar mutação para Expert {id(expert)}")
