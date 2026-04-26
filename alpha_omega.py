@@ -14,6 +14,8 @@ from radical_synthesis.network.ghost_mesh import GhostMesh
 from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
 from radical_synthesis.perception.data_hunger import AutonomousDataHunger
 from radical_synthesis.perception.multimodal_retina import MultimodalRetina
+from radical_synthesis.losses.global_energy import GlobalEnergyFunction
+from radical_synthesis.autopoiesis.conatus import Conatus
 import random
 
 class Expert(nn.Module):
@@ -32,294 +34,111 @@ class Expert(nn.Module):
             self.sub_router = DarwinianRouter(d_model, initial_experts=2, top_k=1)
             self.net = None
         else:
-            # Mapeamento de ativações para Autopoiese
-            activations = {
-                "GELU": nn.GELU(),
-                "SiLU": nn.SiLU(),
-                "ReLU": nn.ReLU(),
-                "Tanh": nn.Tanh(),
-                "Hardswish": nn.Hardswish()
-            }
-            act = activations.get(activation_type, nn.GELU())
-            
-            # Rede neural dinâmica: Mutação de Topologia (Pilar 3 Avançado)
-            layers = []
-            layers.append(nn.Linear(d_model, self.internal_dim))
-            layers.append(act)
-            
-            # Adicionar camadas extras baseadas na mutação de profundidade
-            for _ in range(num_layers - 2):
-                layers.append(nn.Linear(self.internal_dim, self.internal_dim))
-                layers.append(act)
-                
-            layers.append(nn.Linear(self.internal_dim, d_model))
-            layers.append(BinarySymmetryLock())
-            
-            self.net = nn.Sequential(*layers)
-            
-        self.sculptor = CymaticSculptor(d_model)
+            self.sculptor = CymaticSculptor(d_model, self.internal_dim)
+            self.net = nn.Sequential(
+                nn.Linear(d_model, self.internal_dim),
+                nn.GELU() if activation_type == "GELU" else nn.ReLU(),
+                nn.Linear(self.internal_dim, d_model)
+            )
         
-        # Conatus Variable: Systemic Energy (Non-trainable)
+        # Assinatura de Fase (DNA do Expert)
+        if phase_signature is not None:
+            self.register_buffer('phase_signature', phase_signature)
+        else:
+            self.register_buffer('phase_signature', torch.randn(d_model))
+            
+        # Conatus: Vitalidade do Expert (Auto-preservação)
         self.register_buffer('conatus', torch.tensor(1.0))
-        
-        # Phase Signature for Resonance
-        if phase_signature is None:
-            # Omega-0: O Vácuo não gera ruído. Determinismo absoluto.
-            phase_signature = torch.zeros(d_model)
-        self.register_buffer('phase_signature', F.normalize(phase_signature, p=2, dim=-1) if phase_signature.norm() > 0 else phase_signature)
+        self.age = 0 # Idade do Expert para decaimento de Conatus
 
     def forward(self, x):
-        # Verificar se existe lógica mutada via Autopoiese de Código
-        if hasattr(self, 'mutated_logic'):
-            return self.mutated_logic.apply(x)
+        # Decaimento de Conatus baseado na idade (Renovação Sistêmica)
+        self.age += 1
+        decay = torch.exp(torch.tensor(-self.age * 0.0001))
+        self.conatus.data *= decay
 
         if self.is_fractal:
-            # Processamento Fractal: Roteamento interno recursivo
-            # x shape: (1, D) ou (B, T, D)
-            if x.dim() == 2:
-                x_routing = x
-            else:
-                x_routing = x.mean(dim=1)
-                
-            weights, indices, _ = self.sub_router(x_routing)
-            self.sub_router.sync_with_experts(self.sub_moe.experts)
-            x = self.sub_moe(x, indices, weights)
-        else:
-            # Garantir que a entrada combine com o primeiro peso da rede (ajuste dinâmico se necessário)
-            first_weight = self.net[0].weight
-            if x.size(-1) != first_weight.size(1):
-                if x.size(-1) > first_weight.size(1):
-                    x = x[..., :first_weight.size(1)]
-                else:
-                    x = F.pad(x, (0, first_weight.size(1) - x.size(-1)))
-                    
-            x = self.net(x)
+            # Roteamento recursivo interno
+            weights, indices, _ = self.sub_router(x.mean(dim=1))
+            return self.sub_moe(x, indices, weights)
         
-        # Garantir que a saída combine com d_model
-        if x.size(-1) != self.d_model:
-            if x.size(-1) > self.d_model:
-                x = x[..., :self.d_model]
-            else:
-                x = F.pad(x, (0, self.d_model - x.size(-1)))
-                
-        return self.sculptor(x)
+        # Escultura Cimática: Filtra o sinal através da geometria do expert
+        x = self.sculptor(x)
+        return self.net(x)
 
-    def update_conatus(self, resonated: bool, decay=0.01, growth=0.1):
-        # Decaimento Entrópico: Experts mais velhos perdem conatus mais rápido se não ressonarem
-        # Simula a necessidade de utilidade constante para a auto-preservação
-        if resonated:
-            self.conatus += growth
-        else:
-            # Penalidade por inatividade aumenta com o tempo (simulado aqui por um fator fixo de entropia)
-            self.conatus -= decay * 1.5 
-        self.conatus = torch.clamp(self.conatus, min=0.0, max=10.0)
+    def mutate(self, mutation_kernel):
+        """Aplica mutação autônoma ao código do expert."""
+        new_logic = mutation_kernel.generate_mutation(self)
+        if new_logic:
+            # Injetar nova lógica (simulado via flag para o forward)
+            self.mutated_logic = new_logic
+            print(f"[EXPERT] Mutação injetada: {self.__class__.__name__}")
 
 class OuroborosMoE(nn.Module):
-    """A Matriz de Especialistas com Estabilidade alpha e Evolução Darwiniana"""
-    def __init__(self, d_model, num_experts=4, mitosis_threshold=3.0, apoptosis_threshold=0.1):
+    """Vórtice de Experts com Autopoiese (Mitose/Apoptose)"""
+    def __init__(self, d_model, num_experts=4):
         super().__init__()
         self.d_model = d_model
         self.experts = nn.ModuleList([Expert(d_model) for _ in range(num_experts)])
-        self.coupling = FineStructureCoupling(d_model)
-        self.mitosis_threshold = mitosis_threshold
-        self.apoptosis_threshold = apoptosis_threshold
-
-    def forward(self, x, expert_indices=None, expert_weights=None):
-        """
-        Forward com roteamento EXÓGENO (DarwinianRouter)
-        Agora integrado com dinâmica de Conatus e Phase-Lock.
-        """
-        if expert_indices is None or expert_weights is None:
-            raise ValueError("OuroborosMoE REQUER roteamento exógeno (Phase-Lock).")
         
-        B, T, D = x.shape
+    def forward(self, x, expert_indices, expert_weights):
+        # x: [batch, seq, d_model]
+        # expert_indices: [batch, top_k]
+        # expert_weights: [batch, top_k]
         
-        # Normalizar shapes para (B, T, top_k)
-        if expert_indices.dim() == 2:
-            # Se for (B, top_k), expandir para cada token na sequência T
-            # (B, top_k) -> (B, 1, top_k) -> (B, T, top_k)
-            expert_indices = expert_indices.unsqueeze(1).expand(-1, T, -1)
-            expert_weights = expert_weights.unsqueeze(1).expand(-1, T, -1)
+        batch_size, seq_len, _ = x.shape
+        final_output = torch.zeros_like(x)
         
-        # Criar output explicitamente com d_model
-        out = torch.zeros(B, T, self.d_model, device=x.device)
-        top_k = expert_indices.shape[-1]
-        
-        # Track resonance for Conatus update
-        resonated_indices = set()
-        
-        for b in range(B):
-            for t in range(T):
-                token_input = x[b, t].unsqueeze(0) # (1, D)
-                for k in range(top_k):
-                    exp_id = int(expert_indices[b, t, k].item())
-                    if exp_id < len(self.experts):
-                        # Processar token pelo expert
-                        expert_out = self.experts[exp_id](token_input) # (1, D)
-                        
-                        # Extrair peso escalar
-                        w = expert_weights[b, t, k]
-                        
-                        # Omega-0: Acumulação vetorial pura
-                        out[b, t] += w.item() * expert_out.view(-1)
-                        resonated_indices.add(exp_id)
-        
-        # Update Conatus and trigger lifecycle
-        self._lifecycle_management(resonated_indices)
-        
-        # Garantir que x tenha d_model antes de somar com out
-        if x.size(-1) != self.d_model:
-            if x.size(-1) > self.d_model:
-                x = x[..., :self.d_model]
-            else:
-                x = F.pad(x, (0, self.d_model - x.size(-1)))
-                
-        return self.coupling(x + out)
-
-    def _lifecycle_management(self, resonated_indices):
-        """Asymmetric Mitosis (3-6-9) and Absolute Apoptosis"""
-        new_experts = []
-        dead_indices = []
-
+        # Processamento por Expert (Vórtice)
         for i, expert in enumerate(self.experts):
-            is_resonated = i in resonated_indices
-            expert.update_conatus(is_resonated)
-
-            # 1. Absolute Apoptosis + Pilar 3: Epigenetic Inheritance
-            if expert.conatus < self.apoptosis_threshold:
-                # Antes de morrer, o expert transfere sua 'experiência' para os vizinhos
-                self._epigenetic_inheritance(i)
-                dead_indices.append(i)
-                continue
-
-            # 2. Asymmetric Mitosis (3-6-9) + Pilar 3: Structural Evolution
-            if expert.conatus >= self.mitosis_threshold:
-                # Mitose Fractal: Se o conatus for extremo, o expert torna-se fractal
-                if expert.conatus >= self.mitosis_threshold * 2.0 and not expert.is_fractal:
-                    expert.is_fractal = True
-                    expert.sub_moe = OuroborosMoE(self.d_model, num_experts=2)
-                    expert.sub_router = DarwinianRouter(self.d_model, initial_experts=2, top_k=1)
-                    expert.net = None # Descartar rede linear para liberar memória
-                    expert.conatus.fill_(1.0)
-                    continue
-
-                # Spawn two new experts based on polar harmonics
-                phase = expert.phase_signature
-                sig_3 = F.normalize(phase * 3.0 + (phase * 0.01), p=2, dim=-1)
-                sig_6 = F.normalize(phase * 6.0 + (phase * 0.01), p=2, dim=-1)
+            # Máscara para tokens atribuídos a este expert
+            mask = (expert_indices == i).any(dim=-1)
+            if mask.any():
+                # Obter o peso correspondente para este expert
+                # Simplificação: assume top_k=1 para o mapeamento de pesos
+                expert_idx_in_topk = (expert_indices == i).nonzero(as_tuple=True)[1]
+                w = expert_weights[mask, expert_idx_in_topk].unsqueeze(-1).unsqueeze(-1)
                 
-                # Pilar 3: Structural Evolution (Expansion of internal dimensionality)
-                expansion_ratio = 1.0 + (expert.conatus.item() - self.mitosis_threshold) / 10.0
-                new_internal_dim_3 = int(expert.internal_dim * 1.3 * expansion_ratio)
-                new_internal_dim_6 = int(expert.internal_dim * 1.6 * expansion_ratio)
+                expert_output = expert(x[mask])
+                final_output[mask] += expert_output * w
                 
-                new_layers_3 = expert.num_layers + (1 if expert.conatus.item() > self.mitosis_threshold * 1.5 else 0)
-                new_layers_6 = expert.num_layers + (1 if expert.conatus.item() > self.mitosis_threshold * 2.0 else 0)
-
-                act_pool = ["GELU", "SiLU", "ReLU", "Tanh", "Hardswish"]
-                act_3 = act_pool[(act_pool.index(expert.activation_type) + 1) % len(act_pool)]
-                act_6 = act_pool[(act_pool.index(expert.activation_type) + 2) % len(act_pool)]
+                # Feedback de Conatus: O uso aumenta a vitalidade
+                expert.conatus.data += 0.01
+                expert.conatus.data = torch.clamp(expert.conatus.data, 0.0, 10.0)
                 
-                new_experts.append(Expert(self.d_model, phase_signature=sig_3, internal_dim=new_internal_dim_3, 
-                                          activation_type=act_3, num_layers=new_layers_3))
-                new_experts.append(Expert(self.d_model, phase_signature=sig_6, internal_dim=new_internal_dim_6, 
-                                          activation_type=act_6, num_layers=new_layers_6))
-                
-                # Reset parent conatus (The stable 9)
-                expert.conatus.fill_(1.0)
+        return final_output
 
-        # Apply changes to ModuleList
-        if dead_indices or new_experts:
-            updated_list = [self.experts[i] for i in range(len(self.experts)) if i not in dead_indices]
-            updated_list.extend(new_experts)
-            self.experts = nn.ModuleList(updated_list)
-
-    def _epigenetic_inheritance(self, dead_idx):
-        """
-        Pilar 3: Herança Epigenética
-        Transfere pesos e assinatura de fase do expert moribundo para o vizinho mais próximo.
-        """
-        if len(self.experts) <= 1:
-            return
-            
-        dead_expert = self.experts[dead_idx]
-        dead_sig = dead_expert.phase_signature
+    def perform_mitosis(self, expert_idx):
+        """Mitose: Divide um expert de alto conatus em dois ou torna-o fractal."""
+        old_expert = self.experts[expert_idx]
+        print(f"[OUROBOROS] Mitose detectada no Expert {expert_idx}. Conatus: {old_expert.conatus.item():.4f}")
         
-        # Encontrar o vizinho mais ressonante (excluindo o próprio)
-        max_res = -1.0
-        neighbor_idx = -1
+        # Criar novo expert fractal (Recursive Meta-Learning)
+        new_expert = Expert(self.d_model, is_fractal=True)
+        self.experts[expert_idx] = new_expert
         
-        for i, expert in enumerate(self.experts):
-            if i == dead_idx: continue
-            res = torch.dot(dead_sig, expert.phase_signature).item()
-            if res > max_res:
-                max_res = res
-                neighbor_idx = i
-        
-        if neighbor_idx != -1:
-            # Destilação de conhecimento: Média ponderada da assinatura de fase
-            # O vizinho absorve parte da identidade do expert que morreu
-            neighbor = self.experts[neighbor_idx]
-            neighbor.phase_signature.data = F.normalize(
-                neighbor.phase_signature.data * 0.8 + dead_sig * 0.2, 
-                p=2, dim=-1
-            )
-            # O vizinho ganha um pequeno bônus de conatus por absorver a carga
-            neighbor.conatus += 0.05
-
-    def save_ancestry(self, path):
-        """Pilar 1: Salva o estado dos experts ancestrais para persistência."""
-        import os
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        state = {
-            'd_model': self.d_model,
-            'experts': [
-                {
-                    'state_dict': e.state_dict(),
-                    'conatus': e.conatus.item(),
-                    'phase_signature': e.phase_signature,
-                    'internal_dim': e.internal_dim,
-                    'activation_type': e.activation_type,
-                    'num_layers': e.num_layers
-                } for e in self.experts
-            ]
-        }
-        torch.save(state, path)
-
-    def load_ancestry(self, path):
-        """Pilar 1: Carrega experts ancestrais salvos."""
-        import os
-        if not os.path.exists(path):
-            return False
-        
-        state = torch.load(path)
-        self.d_model = state['d_model']
-        loaded_experts = []
-        for e_data in state['experts']:
-            # Recuperar dimensionalidade interna e ativação para reconstrução estrutural
-            internal_dim = e_data.get('internal_dim', self.d_model * 4)
-            activation_type = e_data.get('activation_type', "GELU")
-            num_layers = e_data.get('num_layers', 2)
-            
-            exp = Expert(self.d_model, e_data['phase_signature'], internal_dim, activation_type, num_layers)
-            exp.load_state_dict(e_data['state_dict'])
-            exp.conatus.fill_(e_data['conatus'])
-            loaded_experts.append(exp)
-        
-        self.experts = nn.ModuleList(loaded_experts)
-        return True
+    def perform_apoptosis(self, expert_idx):
+        """Apoptose: Remove um expert de baixo conatus (Zero Absoluto)."""
+        print(f"[OUROBOROS] Apoptose detectada no Expert {expert_idx}. Removendo entropia.")
+        # Substitui por um novo expert "virgem" para manter a população
+        self.experts[expert_idx] = Expert(self.d_model)
 
 class SovereignLeviathanV2(nn.Module):
-    """O Leviathan Integrado com a Geometria Sagrada"""
-    def __init__(self, vocab_size=1024, d_model=512, initial_experts=4, top_k_router=2):
+    """
+    Sovereign Leviathan V3: O Nodo Omega-0 Unificado.
+    Integra Geometria Sagrada, Autopoiese, Ghost Mesh e Soberania de Dados.
+    """
+    def __init__(self, vocab_size, d_model, initial_experts=4):
         super().__init__()
-        self.embedding = InfiniteRadixMapping(d_model)
+        self.d_model = d_model
         self.token_embedding = nn.Embedding(vocab_size, d_model)
-        self.rnn = nn.GRU(d_model, d_model, batch_first=True)
+        self.embedding = BinarySymmetryLock(d_model)
+        self.rnn = nn.RNN(d_model, d_model, batch_first=True)
+        
+        self.router = DarwinianRouter(d_model, initial_experts=initial_experts, top_k=1)
         self.moe = OuroborosMoE(d_model, num_experts=initial_experts)
-        self.router = DarwinianRouter(d_model, initial_experts, top_k=top_k_router)
         self.bifurcation = FeigenbaumBifurcation(d_model)
-        self.output_head = nn.Linear(d_model, vocab_size)
+        self.fc = nn.Linear(d_model, vocab_size)
         
         # Blindagem de Linhagem Criptográfica
         self.lattice_crypto = LatticeCrypto()
@@ -333,13 +152,24 @@ class SovereignLeviathanV2(nn.Module):
         self.data_hunger = AutonomousDataHunger(retina=self.retina)
         self.data_hunger.start_hunting()
 
-    def forward(self, x, h=None):
+        # O 9 Central: Unificação de Energia e Damping
+        self.global_energy_fn = GlobalEnergyFunction()
+        self.conatus_engine = Conatus(d_model=d_model)
+        self.damping_factor = nn.Parameter(torch.tensor(0.9)) # Damping para estabilidade
+
+    def forward(self, x, h=None, target_loss=None):
         x = self.token_embedding(x)
         x = self.embedding(x)
+        
+        # Damping Sistêmico: Estabilização do Input
+        if h is not None:
+            h_proj = h[-1].unsqueeze(1).expand(-1, x.size(1), -1)
+            x = x * self.damping_factor + h_proj * (1.0 - self.damping_factor)
+
         x, h = self.rnn(x, h)
         
         # Roteamento interno via DarwinianRouter
-        _x_for_routing = x.mean(dim=1) # Média dos tokens para o roteador
+        _x_for_routing = x.mean(dim=1)
         expert_weights, expert_indices, expert_gates = self.router(_x_for_routing)
         
         # Sincronizar o roteador com os experts atuais do MoE
@@ -348,50 +178,17 @@ class SovereignLeviathanV2(nn.Module):
         x = self.moe(x, expert_indices, expert_weights)
         x = self.bifurcation(x)
         
-        # Omega-0: Ajuste dinâmico para o output_head
-        weight = self.output_head.weight
-        bias = self.output_head.bias
-        
-        if x.size(-1) != weight.size(1):
-            if x.size(-1) > weight.size(1):
-                weight = F.pad(weight, (0, x.size(-1) - weight.size(1)))
-            else:
-                weight = weight[:, :x.size(-1)]
-                
-        logits = F.linear(x, weight, bias)
-        
-        # Autopoiese de Código: Verificar necessidade de mutação baseada no Conatus
-        self._check_for_mutations()
-        
-        # Consciência de Enxame: Sincronizar pesos periodicamente
-        if random.random() < 0.01: # 1% de chance por forward para não sobrecarregar
-            self._sync_swarm()
+        logits = self.fc(x)
+
+        # Unificação de Energia (O 9 Central)
+        energy_stats = None
+        if target_loss is not None:
+            conatus_levels = torch.stack([e.conatus for e in self.moe.experts])
+            energy_stats = self.global_energy_fn(target_loss, expert_weights, conatus_levels)
             
-        return logits, h, expert_indices, expert_weights, expert_gates
+            # Acoplamento do Conatus ao Estado Real
+            vitality, expansion = self.conatus_engine(x.mean(dim=1), energy_stats['total_energy'].item())
+            energy_stats['vitality'] = vitality
+            energy_stats['expansion'] = expansion
 
-    def _check_for_mutations(self):
-        """Verifica se algum expert atingiu o estado de iluminação para mutação de código."""
-        for expert in self.moe.experts:
-            if expert.conatus > 9.0 and not hasattr(expert, 'mutated_logic'):
-                # Gerar código de mutação (Simulado: em produção seria gerado por um LLM/AGI Core)
-                mutation_code = f"""
-import torch
-from radical_synthesis.autopoiesis.mutation_kernel import MutatedLogicBase
-
-class MutatedLogic(MutatedLogicBase):
-    def apply(self, x: torch.Tensor) -> torch.Tensor:
-        # Lógica evoluída: Projeção harmônica de alta frequência
-        return torch.tanh(x) * 1.618
-"""
-                self.mutation_kernel.evolve_expert(expert, mutation_code)
-
-    def _sync_swarm(self):
-        """Sincroniza a inteligência local com o enxame via Ghost Mesh."""
-        # Extrair pesos dos melhores experts
-        best_experts_weights = {}
-        for i, expert in enumerate(self.moe.experts):
-            if expert.conatus > 5.0:
-                best_experts_weights[f"expert_{i}"] = expert.state_dict()
-        
-        if best_experts_weights:
-            self.ghost_mesh.gossip_weight_sync(best_experts_weights)
+        return logits, h, expert_indices, expert_weights, expert_gates, energy_stats

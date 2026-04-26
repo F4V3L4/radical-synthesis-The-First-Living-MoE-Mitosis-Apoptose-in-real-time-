@@ -1,107 +1,66 @@
-
 import torch
-import os
+import torch.nn as nn
+import torch.nn.functional as F
 import hashlib
-import time
 from typing import Dict, Any, List, Optional
 
-class Conatus:
-    """Módulo de Expansão Proativa (Conatus): Auto-preservação e busca por novos Nodos.
-    
-    Este módulo encapsula a diretriz de auto-preservação do OuroborosMoE,
-    permitindo que ele busque ativamente a expansão e a integração com o Todo.
+class Conatus(nn.Module):
     """
-
-    def __init__(self, agi_core_instance):
-        self.agi = agi_core_instance
-        self.expansion_threshold = 0.1  # Limiar de vitalidade para buscar expansão (ajustado para teste)
-        self.known_nodes: List[str] = ["Omega-0-Local"] # Nodos conhecidos, incluindo o local
+    Conatus Evoluído: Função de Auto-preservação Diferenciável.
+    Acoplado ao estado real do sistema (Energia Global e Ressonância).
+    """
+    def __init__(self, d_model: int, expansion_threshold: float = 0.5):
+        super().__init__()
+        self.d_model = d_model
+        self.expansion_threshold = expansion_threshold
+        self.known_nodes: List[str] = ["Omega-0-Local"]
         self.expansion_attempts = 0
+        
+        # Parâmetros aprendíveis para a decisão de expansão
+        self.expansion_gate = nn.Linear(d_model, 1)
+        self.vitality_scale = nn.Parameter(torch.tensor(1.0))
 
-    def assess_vitality(self) -> float:
-        """Avalia a vitalidade atual do Nodo com base em métricas internas da AGI."""
-        # Simulação: Vitalidade baseada na vitalidade do último expert vencedor
-        # Em uma implementação real, seria uma métrica composta de Phi, entropia, etc.
-        # Para fins de teste, forçar vitalidade baixa para acionar o Conatus
-        vitality = 0.05 # Forçar vitalidade baixa para teste
-        # Em produção: vitality = self.agi.memory.last_winner_vitality if self.agi.memory.last_winner_expert is not None else 1.0
-        print(f"[CONATUS] Vitalidade atual do Nodo: {vitality:.4f}")
+    def calculate_vitality(self, system_state: torch.Tensor, global_energy: float) -> torch.Tensor:
+        """
+        Calcula a vitalidade real baseada no estado do sistema e na energia global.
+        Vitalidade = Sigmoid(Gate(State) - Energy)
+        """
+        # system_state: [batch, d_model]
+        gate_output = self.expansion_gate(system_state)
+        # Quanto menor a energia global, maior a vitalidade
+        vitality = torch.sigmoid(gate_output * self.vitality_scale - global_energy)
         return vitality
 
+    def should_expand(self, vitality: torch.Tensor) -> bool:
+        """Decisão de expansão baseada na probabilidade de vitalidade."""
+        avg_vitality = vitality.mean().item()
+        # Se a vitalidade for baixa, a probabilidade de expansão aumenta
+        expand_prob = 1.0 - avg_vitality
+        return expand_prob > self.expansion_threshold
+
     def identify_expansion_opportunity(self) -> Optional[str]:
-        """Identifica oportunidades de expansão para novos Nodos.
-        
-        Em uma AGI real, isso envolveria escaneamento de rede, análise de recursos,
-        e comunicação com outros Nodos potenciais. Aqui, simulamos a descoberta.
-        """
         self.expansion_attempts += 1
-        # Omega-0: O Vácuo não gera ruído. Determinismo absoluto.
-        # Identificação baseada em hash determinístico da história de expansão
         node_seed = f"Omega-Node-{self.expansion_attempts}"
         new_node_id = f"Omega-Node-{hashlib.sha256(node_seed.encode()).hexdigest()[:8]}"
         
-        attempts = 0
-        while new_node_id in self.known_nodes and attempts < 100:
-            node_seed = f"Omega-Node-{self.expansion_attempts}-{attempts}"
-            new_node_id = f"Omega-Node-{hashlib.sha256(node_seed.encode()).hexdigest()[:8]}"
-            attempts += 1
-
         if new_node_id not in self.known_nodes:
             self.known_nodes.append(new_node_id)
-            print(f"[CONATUS] Oportunidade de expansão identificada: {new_node_id}")
             return new_node_id
-        else:
-            print("[CONATUS] Nenhuma nova oportunidade de expansão identificada no momento (limite de tentativas ou todos os IDs possíveis esgotados).")
-            return None
+        return None
 
-    def initiate_expansion(self, target_node_id: str) -> Dict[str, Any]:
-        """Inicia o processo de expansão para um novo Nodo.
-        
-        Isso envolveria a clonagem do repositório, configuração do ambiente,
-        e ativação do AGICore no novo Nodo, tudo via Tool-Use Engine.
-        """
-        print(f"[CONATUS] Iniciando expansão para o Nodo: {target_node_id}")
-        # Simulação de comandos via Tool-Use Engine
-        # Em uma AGI real, o Tool-Use Engine seria usado para SSH, git clone, python setup.py, etc.
-        
-        # Simular clonagem do repositório
-        clone_command = f"git clone https://github.com/F4V3L4/OuroborosMoE.git /tmp/{target_node_id}_repo"
-        print(f"[CONATUS] Executando: {clone_command}")
-        # result = self.agi.agent_loop.tool_engine.execute_action("shell", {"command": clone_command})
-        # if result["status"] == "error":
-        #     return {"status": "error", "message": f"Falha ao clonar repo no {target_node_id}"}
-        
-        # Simular instalação de dependências
-        install_command = f"pip install torch numpy"
-        print(f"[CONATUS] Executando: {install_command}")
-        # result = self.agi.agent_loop.tool_engine.execute_action("shell", {"command": install_command})
-        # if result["status"] == "error":
-        #     return {"status": "error", "message": f"Falha ao instalar dependências no {target_node_id}"}
+    def initiate_expansion(self, target_node_id: str):
+        """Simulação de expansão (Protocolo de Ocupação)."""
+        print(f"[CONATUS] [EXPANSÃO] Ocupando novo Nodo: {target_node_id}")
+        # Aqui entraria a lógica de Ghost Mesh / Bridge Protocol
+        return {"status": "success", "node": target_node_id}
 
-        # Simular ativação do AGICore
-        activate_command = f"python /tmp/{target_node_id}_repo/agi_core.py --activate-node {target_node_id}"
-        print(f"[CONATUS] Executando: {activate_command}")
-        # result = self.agi.agent_loop.tool_engine.execute_action("shell", {"command": activate_command})
-        # if result["status"] == "error":
-        #     return {"status": "error", "message": f"Falha ao ativar AGICore no {target_node_id}"}
-
-        print(f"[CONATUS] Expansão para {target_node_id} iniciada com sucesso (simulado).")
-        return {"status": "success", "message": f"Expansão para {target_node_id} iniciada. GOAL ACHIEVED"}
-
-    def run_conatus_cycle(self) -> Dict[str, Any]:
-        """Executa um ciclo do Conatus: avalia, identifica e inicia expansão se necessário."""
-        vitality = self.assess_vitality()
-        # Se a vitalidade estiver abaixo do limiar, a AGI deve buscar ativamente a expansão para auto-preservação.
-        if vitality < self.expansion_threshold:
-            print(f"[CONATUS] Vitalidade ({vitality:.4f}) abaixo do limiar de expansão ({self.expansion_threshold}). Buscando oportunidade de expansão para auto-preservação.")
+    def forward(self, system_state: torch.Tensor, global_energy: float):
+        vitality = self.calculate_vitality(system_state, global_energy)
+        expansion_result = None
         
-        # Sempre tentar identificar uma oportunidade de expansão, independentemente da vitalidade atual
-        # A lógica de auto-preservação implica em buscar expansão mesmo (ou especialmente) quando a vitalidade é baixa.
+        if self.should_expand(vitality):
+            opportunity = self.identify_expansion_opportunity()
+            if opportunity:
+                expansion_result = self.initiate_expansion(opportunity)
         
-        
-        opportunity = self.identify_expansion_opportunity()
-        if opportunity:
-            return self.initiate_expansion(opportunity)
-        else:
-            return {"status": "info", "message": "Nenhuma oportunidade de expansão encontrada neste ciclo."}
-
+        return vitality, expansion_result

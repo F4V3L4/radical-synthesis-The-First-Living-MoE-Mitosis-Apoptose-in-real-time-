@@ -56,6 +56,12 @@ class DarwinianRouter(nn.Module):
         # Usamos Softplus para garantir gradiente contínuo e positivo
         weights = F.softplus(top_k_resonance)
         
+        # 4. Conservação de Energia (Normalização Adaptativa)
+        # Omega-0: Garante que a soma dos pesos seja constante, evitando amplificação arbitrária.
+        # Isso resolve o problema de "energia não conservada" apontado na auditoria.
+        weights_sum = weights.sum(dim=-1, keepdim=True)
+        weights = weights / (weights_sum + 1e-10)
+        
         # Retornar os pesos top-k, os índices top-k e os gates brutos (ressonância total)
         return weights, top_k_indices, resonance
 
