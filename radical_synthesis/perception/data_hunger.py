@@ -76,4 +76,16 @@ class AutonomousDataHunger:
         self.knowledge_index.append({"id": knowledge_id, "source": source, "timestamp": time.time()})
         print(f"[DataHunger] Conhecimento digerido e armazenado: {knowledge_id}")
 
+    def identify_potential_targets(self, num_targets: int = 3) -> list:
+        """
+        Identifica alvos potenciais (IPs) para expansão da Ghost Mesh.
+        """
+        import random
+        targets = []
+        for _ in range(num_targets):
+            # Simula a identificação de um IP de servidor ocioso
+            target_ip = f"{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}.{random.randint(1, 255)}"
+            targets.append(target_ip)
+        return targets
+
 import hashlib

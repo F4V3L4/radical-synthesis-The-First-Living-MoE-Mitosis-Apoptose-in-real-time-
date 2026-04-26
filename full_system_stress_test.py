@@ -38,7 +38,7 @@ def run_full_stress_test():
         input_ids = torch.randint(0, vocab_size, (batch_size, seq_len)).to(device)
         
         # Forward Pass
-        logits, h, indices, weights, gates = model(input_ids)
+        logits, h, indices, weights, gates, energy_stats = model(input_ids)
         
         # Loss Calculation
         loss = loss_fn(weights, gates)

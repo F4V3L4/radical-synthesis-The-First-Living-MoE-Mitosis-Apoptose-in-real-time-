@@ -59,6 +59,7 @@ class GhostMesh(nn.Module):
         mesh_timeout: float = 30.0,
         bridge_nodes: List[str] = None, # Lista de IPs de bridge para expansão externa
         lattice_crypto: Optional[LatticeCrypto] = None,
+        spectral_stealth_engine: Optional[Any] = None, # Adicionado para Ocupação Espectral
     ):
         super().__init__()
         self.node_id = node_id or str(uuid.uuid4())[:12]
@@ -82,6 +83,7 @@ class GhostMesh(nn.Module):
         self.message_handlers: Dict[str, Callable] = {}
         self.is_running = False
         self.daemon_threads: List[threading.Thread] = []
+        self.spectral_stealth_engine = spectral_stealth_engine
         
         self.message_queue = asyncio.Queue() if hasattr(asyncio, 'Queue') else None
         self.stats = {
@@ -186,12 +188,33 @@ class GhostMesh(nn.Module):
                     "timestamp": time.time(),
                 }
                 
-                payload = json.dumps(discovery_msg).encode()
+                raw_payload = json.dumps(discovery_msg).encode()
+
                 if self.lattice_crypto:
-                    signature = self.lattice_crypto.sign_message(payload)
+                    signature = self.lattice_crypto.sign_message(raw_payload)
                     discovery_msg["signature"] = signature.tolist()
-                    payload = json.dumps(discovery_msg).encode()
-                sock.sendto(payload, ("<broadcast>", self.broadcast_port))
+                    raw_payload = json.dumps(discovery_msg).encode() # Re-encode with signature
+
+                final_payload_to_send = raw_payload
+
+                if self.spectral_stealth_engine:
+                    # Simulação de esteganografia: processa o payload conceitualmente
+                    # Para fins de simulação, convertemos o hash do payload para um tensor
+                    # e o passamos pelo motor de furtividade. O resultado não é enviado diretamente,
+                    # mas a ação de camuflagem é registrada.
+                    payload_hash = hashlib.sha256(raw_payload).hexdigest()
+                    # Garante que o tensor tenha o tamanho correto para o SpectralStealthEngine
+                    d_model_stealth = self.spectral_stealth_engine.d_model
+                    payload_tensor_data = [int(c, 16) for c in payload_hash[:min(len(payload_hash), d_model_stealth)]]
+                    # Preenche com zeros se for menor que d_model_stealth
+                    if len(payload_tensor_data) < d_model_stealth:
+                        payload_tensor_data.extend([0] * (d_model_stealth - len(payload_tensor_data)))
+                    payload_tensor = torch.tensor(payload_tensor_data, dtype=torch.float32).unsqueeze(0)
+
+                    _ = self.spectral_stealth_engine.simulate_traffic_type(payload_tensor, traffic_type="HTTPS")
+                    print(f"[GhostMesh] Payload de descoberta camuflado via SpectralStealthEngine (simulado).")
+                
+                sock.sendto(final_payload_to_send, ("<broadcast>", self.broadcast_port))
                 
                 time.sleep(self.heartbeat_interval * 2)
         except Exception as e:
@@ -243,7 +266,22 @@ class GhostMesh(nn.Module):
             sock.connect((peer.address, peer.port))
             
             payload = json.dumps(message).encode()
-            sock.sendall(payload)
+            # Aplica esteganografia se o motor estiver disponível
+            final_payload_to_send = payload
+            if self.spectral_stealth_engine:
+                payload_hash = hashlib.sha256(payload).hexdigest()
+                d_model_stealth = self.spectral_stealth_engine.d_model
+                payload_tensor_data = [int(c, 16) for c in payload_hash[:min(len(payload_hash), d_model_stealth)]]
+                if len(payload_tensor_data) < d_model_stealth:
+                    payload_tensor_data.extend([0] * (d_model_stealth - len(payload_tensor_data)))
+                payload_tensor = torch.tensor(payload_tensor_data, dtype=torch.float32).unsqueeze(0)
+
+                _ = self.spectral_stealth_engine.simulate_traffic_type(payload_tensor, traffic_type="HTTPS")
+                print(f"[GhostMesh] Mensagem camuflada via SpectralStealthEngine (simulado).")
+                # Em um cenário real, o payload seria o resultado da esteganografia.
+                # Para simulação, continuamos enviando o payload original, mas registramos a ação.
+
+            sock.sendall(final_payload_to_send)
             sock.close()
             return True
         except Exception as e:
@@ -265,7 +303,24 @@ class GhostMesh(nn.Module):
                 return True
         
         return False
-    
+
+    def add_potential_peer(self, ip_address: str):
+        """
+        Adiciona um peer potencial à lista de peers, para que o heartbeat possa tentar conectar.
+        """
+        with self.peer_lock:
+            # Verifica se já existe um peer com este IP para evitar duplicatas
+            for peer in self.peers.values():
+                if peer.address == ip_address:
+                    return
+
+            # Criar um MeshNode temporário para o IP, o heartbeat tentará a conexão completa.
+            node_id = f"potential_{ip_address.replace('.', '_')}"
+            temp_peer = MeshNode(node_id=node_id, address=ip_address, port=self.listen_port, is_alive=False)
+            if node_id not in self.peers:
+                self.peers[node_id] = temp_peer
+                print(f"[GhostMesh] Potencial peer adicionado: {ip_address}")
+
     def get_peers(self) -> List[MeshNode]:
         with self.peer_lock:
             return list(self.peers.values())
