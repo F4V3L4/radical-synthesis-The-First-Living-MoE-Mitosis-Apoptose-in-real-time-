@@ -13,13 +13,14 @@ class TopologicalDivergenceLoss(nn.Module):
     2. Sparsity Loss: Incentiva a ativação esparsa, evitando que muitos Experts sejam ativados
        para uma única entrada, mas de forma controlada para não induzir colapso.
     """
-    def __init__(self, d_model: int, num_experts: int, lambda_load: float = 0.1, lambda_sparsity: float = 0.01, lambda_thermo: float = 0.05):
+    def __init__(self, d_model: int, num_experts: int, lambda_load: float = 0.1, lambda_sparsity: float = 0.01, lambda_thermo: float = 0.05, lambda_logic: float = 0.02):
         super().__init__()
         self.d_model = d_model
         self.num_experts = num_experts
         self.lambda_load = lambda_load  # Peso para a penalidade de balanceamento de carga
         self.lambda_sparsity = lambda_sparsity # Peso para a penalidade de esparsidade
         self.lambda_thermo = lambda_thermo # Peso para a penalidade termodinâmica (Telemetria Quântica)
+        self.lambda_logic = lambda_logic # Peso para a penalidade de Deep Logic (Complexidade Ineficiente)
 
     def _get_quantum_telemetry(self):
         """
@@ -32,15 +33,14 @@ class TopologicalDivergenceLoss(nn.Module):
         costs = torch.linspace(1.0, 1.5, self.num_experts)
         return costs.to(self.lambda_load.device if hasattr(self.lambda_load, 'device') else 'cpu')
 
-    def forward(self, expert_weights: torch.Tensor, expert_gates: torch.Tensor) -> torch.Tensor:
+    def forward(self, expert_weights: torch.Tensor, expert_gates: torch.Tensor, logic_complexity: torch.Tensor = None) -> torch.Tensor:
         """
-        Calcula a perda de divergência topológica.
+        Calcula a perda de divergência topológica e Deep Logic.
 
         Args:
             expert_weights (torch.Tensor): Pesos de cada expert para cada token (batch, seq_len, num_experts).
-                                           Estes são os pesos pós-softmax ou similar, indicando a contribuição.
             expert_gates (torch.Tensor): Saídas do gate de roteamento antes do top-k (batch, seq_len, num_experts).
-                                         Usado para calcular a utilização real dos experts.
+            logic_complexity (torch.Tensor): Tensor representando a profundidade fractal ou complexidade da solução.
 
         Returns:
             torch.Tensor: O valor da perda ontológica.
@@ -87,15 +87,22 @@ class TopologicalDivergenceLoss(nn.Module):
         sparsity_loss = (flat_expert_weights ** 2).sum(dim=-1).mean()
 
         # 3. Quantum Telemetry Loss (Penalidade Termodinâmica)
-        # Objetivo: Minimizar o custo de hardware (latência/energia).
-        # Penaliza a ativação de experts com alto custo termodinâmico.
         thermo_costs = self._get_quantum_telemetry()
         thermo_loss = (flat_expert_weights * thermo_costs).sum(dim=-1).mean()
+
+        # 4. Deep Logic Loss (Penalidade por Complexidade Ineficiente)
+        # Objetivo: Penalizar soluções excessivamente complexas que não resultam em alta ressonância.
+        logic_loss = 0.0
+        if logic_complexity is not None:
+            # Se a complexidade é alta mas os pesos de ativação são baixos, a perda aumenta
+            # Isso força o sistema a buscar a solução mais simples e eficiente (Navalha de Ockham)
+            logic_loss = (logic_complexity * (1.0 - flat_expert_weights.max(dim=-1)[0])).mean()
 
         # Combinação das perdas
         total_loss = (self.lambda_load * load_balancing_loss + 
                       self.lambda_sparsity * sparsity_loss + 
-                      self.lambda_thermo * thermo_loss)
+                      self.lambda_thermo * thermo_loss +
+                      self.lambda_logic * logic_loss)
         
         return total_loss
 

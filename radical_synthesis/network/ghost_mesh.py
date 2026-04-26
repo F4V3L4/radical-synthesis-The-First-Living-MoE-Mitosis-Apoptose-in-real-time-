@@ -54,8 +54,8 @@ class GhostMesh(nn.Module):
         node_id: Optional[str] = None,
         listen_port: int = 9000,
         broadcast_port: int = 9001,
-        max_peers: int = 32,
-        heartbeat_interval: float = 5.0,
+        max_peers: int = 1024, # Escala massiva para ocupação global
+        heartbeat_interval: float = 2.0, # Pulsação mais rápida para sincronização em enxame
         mesh_timeout: float = 30.0,
         bridge_nodes: List[str] = None, # Lista de IPs de bridge para expansão externa
         lattice_crypto: Optional[LatticeCrypto] = None,
@@ -141,10 +141,11 @@ class GhostMesh(nn.Module):
         """Hardware Hijack Protocol: Escaneia a rede local por recursos ociosos e os 'sequestra'."""
         while self.is_running:
             try:
-                if random.random() < 0.1:
-                    idle_ip = f"192.168.1.{random.randint(2, 254)}"
-                    idle_port = random.choice([9000, 9002, 9004])
-                    print(f"[GhostMesh] Recurso ocioso detectado: {idle_ip}:{idle_port}. Iniciando simbiose...")
+                # Ocupação Agressiva: Aumentamos a probabilidade de detecção
+                if random.random() < 0.3:
+                    idle_ip = f"10.0.0.{random.randint(2, 254)}" # Expansão para outras sub-redes
+                    idle_port = random.choice([9000, 9001, 9002, 9003, 9004])
+                    print(f"[GhostMesh] [HIJACK] Recurso ocioso detectado em {idle_ip}:{idle_port}. Ocupando...")
                     simulated_peer = MeshNode(
                         node_id=f"hijacked_{idle_ip.replace('.', '')}",
                         address=idle_ip,

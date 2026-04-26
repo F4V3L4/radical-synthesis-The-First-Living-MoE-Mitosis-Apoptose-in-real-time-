@@ -12,6 +12,8 @@ from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.autopoiesis.mutation_kernel import MutationKernel
 from radical_synthesis.network.ghost_mesh import GhostMesh
 from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
+from radical_synthesis.perception.data_hunger import AutonomousDataHunger
+from radical_synthesis.perception.multimodal_retina import MultimodalRetina
 import random
 
 class Expert(nn.Module):
@@ -325,6 +327,11 @@ class SovereignLeviathanV2(nn.Module):
         
         self.mutation_kernel = MutationKernel(lattice_crypto=self.lattice_crypto)
         self.ghost_mesh = GhostMesh()
+        
+        # Soberania de Dados: Autonomous Data Hunger
+        self.retina = MultimodalRetina(d_model=d_model)
+        self.data_hunger = AutonomousDataHunger(retina=self.retina)
+        self.data_hunger.start_hunting()
 
     def forward(self, x, h=None):
         x = self.token_embedding(x)
