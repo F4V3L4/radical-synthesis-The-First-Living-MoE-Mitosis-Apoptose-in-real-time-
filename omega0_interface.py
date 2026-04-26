@@ -1,14 +1,13 @@
 import os
 import time
 import torch
-from agi_core import AGICore
 
 class Omega0Interface:
     """
     Interface de Comando Omega-0 (Terminal-Nativa)
     Visualização bare-metal do Conatus, Phi e Evolução Sistêmica.
     """
-    def __init__(self, agi_core: AGICore):
+    def __init__(self, agi_core):
         self.agi = agi_core
         self.start_time = time.time()
 
@@ -39,7 +38,8 @@ class Omega0Interface:
             bar = "█" * bar_len + "░" * (20 - bar_len)
             act = exp.activation_type
             dim = exp.internal_dim
-            print(f"  EXPERT_{i:02d} [{bar}] C:{conatus:.2f} | DIM:{dim:<6} | ACT:{act}")
+            layers = getattr(exp, 'num_layers', 2)
+            print(f"  EXPERT_{i:02d} [{bar}] C:{conatus:.2f} | DIM:{dim:<6} | L:{layers} | ACT:{act}")
         print("-" * 80)
 
     def run_monitor(self, interval=2):
@@ -54,10 +54,3 @@ class Omega0Interface:
                 time.sleep(interval)
         except KeyboardInterrupt:
             print("\nInterface Omega-0 encerrada.")
-
-if __name__ == "__main__":
-    # Mock para teste da interface
-    from agi_core import AGICore
-    agi = AGICore(vocab_size=1000, d_model=512, num_experts=4)
-    interface = Omega0Interface(agi)
-    interface.run_monitor()

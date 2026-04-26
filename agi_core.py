@@ -22,6 +22,7 @@ from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.perception.vector_retina import VectorRetinaV2
 from radical_synthesis.consciousness.topology import TopologicalConsciousness
 from radical_synthesis.autopoiesis.mesh import ToroidalMesh
+from omega0_interface import Omega0Interface
 from radical_synthesis.tools.engine import ToolUseEngine
 from radical_synthesis.memory.vortex import MemoryVortex
 from radical_synthesis.infrastructure.tensor_cache import TensorCache
@@ -356,6 +357,9 @@ class AGICore(nn.Module):
         
         # Pilar 5: Mesh Toroidal (Computação Distribuída)
         self.mesh = ToroidalMesh(node_id="Omega-0-Local")
+        
+        # Interface Omega-0
+        self.interface = Omega0Interface(self)
 
         # Protocolo de Intencionalidade Omega
         self.agent_loop = SovereignAgentLoop(self)
@@ -614,6 +618,10 @@ class AGICore(nn.Module):
                 self.core(tokens, expert_indices=indices, expert_weights=weights)
         except Exception as e:
             print(f"⚠️ Erro na Percepção Ativa: {e}")
+
+    def run_interface(self, interval=2):
+        """Inicia o monitoramento via Interface Omega-0"""
+        self.interface.run_monitor(interval=interval)
 
     def forward(self, query: str, retina_folder: str, tokenizer) -> Dict:
         """

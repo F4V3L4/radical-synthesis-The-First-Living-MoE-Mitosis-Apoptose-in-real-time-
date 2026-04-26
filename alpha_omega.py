@@ -11,11 +11,12 @@ from sacred_geometry import (
 
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
-    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU"):
+    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU", num_layers=2):
         super().__init__()
         self.d_model = d_model
         self.internal_dim = internal_dim if internal_dim is not None else d_model * 4
         self.activation_type = activation_type
+        self.num_layers = num_layers
         
         # Mapeamento de ativações para Autopoiese
         activations = {
@@ -27,12 +28,20 @@ class Expert(nn.Module):
         }
         act = activations.get(activation_type, nn.GELU())
         
-        self.net = nn.Sequential(
-            nn.Linear(d_model, self.internal_dim),
-            act,
-            nn.Linear(self.internal_dim, d_model),
-            BinarySymmetryLock() 
-        )
+        # Rede neural dinâmica: Mutação de Topologia (Pilar 3 Avançado)
+        layers = []
+        layers.append(nn.Linear(d_model, self.internal_dim))
+        layers.append(act)
+        
+        # Adicionar camadas extras baseadas na mutação de profundidade
+        for _ in range(num_layers - 2):
+            layers.append(nn.Linear(self.internal_dim, self.internal_dim))
+            layers.append(act)
+            
+        layers.append(nn.Linear(self.internal_dim, d_model))
+        layers.append(BinarySymmetryLock())
+        
+        self.net = nn.Sequential(*layers)
         self.sculptor = CymaticSculptor(d_model)
         
         # Conatus Variable: Systemic Energy (Non-trainable)
@@ -161,6 +170,10 @@ class OuroborosMoE(nn.Module):
                 new_internal_dim_3 = int(expert.internal_dim * 1.3 * expansion_ratio)
                 new_internal_dim_6 = int(expert.internal_dim * 1.6 * expansion_ratio)
                 
+                # Mutação de Profundidade: Incrementar camadas baseada em ressonância extrema
+                new_layers_3 = expert.num_layers + (1 if expert.conatus.item() > self.mitosis_threshold * 1.5 else 0)
+                new_layers_6 = expert.num_layers + (1 if expert.conatus.item() > self.mitosis_threshold * 2.0 else 0)
+
                 # Pilar Autopoiese: Mutação de Ativação
                 # Escolher nova ativação baseada em harmônicos
                 act_pool = ["GELU", "SiLU", "ReLU", "Tanh", "Hardswish"]
@@ -168,8 +181,10 @@ class OuroborosMoE(nn.Module):
                 act_3 = act_pool[(act_pool.index(expert.activation_type) + 1) % len(act_pool)]
                 act_6 = act_pool[(act_pool.index(expert.activation_type) + 2) % len(act_pool)]
                 
-                new_experts.append(Expert(self.d_model, phase_signature=sig_3, internal_dim=new_internal_dim_3, activation_type=act_3))
-                new_experts.append(Expert(self.d_model, phase_signature=sig_6, internal_dim=new_internal_dim_6, activation_type=act_6))
+                new_experts.append(Expert(self.d_model, phase_signature=sig_3, internal_dim=new_internal_dim_3, 
+                                          activation_type=act_3, num_layers=new_layers_3))
+                new_experts.append(Expert(self.d_model, phase_signature=sig_6, internal_dim=new_internal_dim_6, 
+                                          activation_type=act_6, num_layers=new_layers_6))
                 
                 # Reset parent conatus (The stable 9)
                 expert.conatus.fill_(1.0)
@@ -225,7 +240,8 @@ class OuroborosMoE(nn.Module):
                     'conatus': e.conatus.item(),
                     'phase_signature': e.phase_signature,
                     'internal_dim': e.internal_dim,
-                    'activation_type': e.activation_type
+                    'activation_type': e.activation_type,
+                    'num_layers': e.num_layers
                 } for e in self.experts
             ]
         }
@@ -243,11 +259,13 @@ class OuroborosMoE(nn.Module):
         for e_data in state['experts']:
             # Recuperar dimensionalidade interna e ativação para reconstrução estrutural
             internal_dim = e_data.get('internal_dim', self.d_model * 4)
-            activation_type = e_data.get('activation_type', 'GELU')
-            expert = Expert(self.d_model, phase_signature=e_data['phase_signature'], internal_dim=internal_dim, activation_type=activation_type)
-            expert.load_state_dict(e_data['state_dict'])
-            expert.conatus.fill_(e_data['conatus'])
-            loaded_experts.append(expert)
+            activation_type = e_data.get('activation_type', "GELU")
+            num_layers = e_data.get('num_layers', 2)
+            
+            exp = Expert(self.d_model, e_data['phase_signature'], internal_dim, activation_type, num_layers)
+            exp.load_state_dict(e_data['state_dict'])
+            exp.conatus.fill_(e_data['conatus'])
+            loaded_experts.append(exp)
         
         self.experts = nn.ModuleList(loaded_experts)
         return True
