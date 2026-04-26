@@ -12,37 +12,45 @@ from radical_synthesis.autopoiesis.routing import DarwinianRouter
 
 class Expert(nn.Module):
     """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
-    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU", num_layers=2):
+    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU", num_layers=2, is_fractal=False):
         super().__init__()
         self.d_model = d_model
         self.internal_dim = internal_dim if internal_dim is not None else d_model * 4
         self.activation_type = activation_type
         self.num_layers = num_layers
+        self.is_fractal = is_fractal
         
-        # Mapeamento de ativações para Autopoiese
-        activations = {
-            "GELU": nn.GELU(),
-            "SiLU": nn.SiLU(),
-            "ReLU": nn.ReLU(),
-            "Tanh": nn.Tanh(),
-            "Hardswish": nn.Hardswish()
-        }
-        act = activations.get(activation_type, nn.GELU())
-        
-        # Rede neural dinâmica: Mutação de Topologia (Pilar 3 Avançado)
-        layers = []
-        layers.append(nn.Linear(d_model, self.internal_dim))
-        layers.append(act)
-        
-        # Adicionar camadas extras baseadas na mutação de profundidade
-        for _ in range(num_layers - 2):
-            layers.append(nn.Linear(self.internal_dim, self.internal_dim))
+        if is_fractal:
+            # Mitose Fractal: O Expert torna-se um sub-nodo MoE
+            self.sub_moe = OuroborosMoE(d_model, num_experts=2)
+            self.sub_router = DarwinianRouter(d_model, initial_experts=2, top_k=1)
+            self.net = None
+        else:
+            # Mapeamento de ativações para Autopoiese
+            activations = {
+                "GELU": nn.GELU(),
+                "SiLU": nn.SiLU(),
+                "ReLU": nn.ReLU(),
+                "Tanh": nn.Tanh(),
+                "Hardswish": nn.Hardswish()
+            }
+            act = activations.get(activation_type, nn.GELU())
+            
+            # Rede neural dinâmica: Mutação de Topologia (Pilar 3 Avançado)
+            layers = []
+            layers.append(nn.Linear(d_model, self.internal_dim))
             layers.append(act)
             
-        layers.append(nn.Linear(self.internal_dim, d_model))
-        layers.append(BinarySymmetryLock())
-        
-        self.net = nn.Sequential(*layers)
+            # Adicionar camadas extras baseadas na mutação de profundidade
+            for _ in range(num_layers - 2):
+                layers.append(nn.Linear(self.internal_dim, self.internal_dim))
+                layers.append(act)
+                
+            layers.append(nn.Linear(self.internal_dim, d_model))
+            layers.append(BinarySymmetryLock())
+            
+            self.net = nn.Sequential(*layers)
+            
         self.sculptor = CymaticSculptor(d_model)
         
         # Conatus Variable: Systemic Energy (Non-trainable)
@@ -55,15 +63,27 @@ class Expert(nn.Module):
         self.register_buffer('phase_signature', F.normalize(phase_signature, p=2, dim=-1) if phase_signature.norm() > 0 else phase_signature)
 
     def forward(self, x):
-        # Garantir que a entrada combine com o primeiro peso da rede (ajuste dinâmico se necessário)
-        first_weight = self.net[0].weight
-        if x.size(-1) != first_weight.size(1):
-            if x.size(-1) > first_weight.size(1):
-                x = x[..., :first_weight.size(1)]
+        if self.is_fractal:
+            # Processamento Fractal: Roteamento interno recursivo
+            # x shape: (1, D) ou (B, T, D)
+            if x.dim() == 2:
+                x_routing = x
             else:
-                x = F.pad(x, (0, first_weight.size(1) - x.size(-1)))
+                x_routing = x.mean(dim=1)
                 
-        x = self.net(x)
+            weights, indices, _ = self.sub_router(x_routing)
+            self.sub_router.sync_with_experts(self.sub_moe.experts)
+            x = self.sub_moe(x, indices, weights)
+        else:
+            # Garantir que a entrada combine com o primeiro peso da rede (ajuste dinâmico se necessário)
+            first_weight = self.net[0].weight
+            if x.size(-1) != first_weight.size(1):
+                if x.size(-1) > first_weight.size(1):
+                    x = x[..., :first_weight.size(1)]
+                else:
+                    x = F.pad(x, (0, first_weight.size(1) - x.size(-1)))
+                    
+            x = self.net(x)
         
         # Garantir que a saída combine com d_model
         if x.size(-1) != self.d_model:
@@ -161,25 +181,29 @@ class OuroborosMoE(nn.Module):
 
             # 2. Asymmetric Mitosis (3-6-9) + Pilar 3: Structural Evolution
             if expert.conatus >= self.mitosis_threshold:
+                # Mitose Fractal: Se o conatus for extremo, o expert torna-se fractal
+                if expert.conatus >= self.mitosis_threshold * 2.0 and not expert.is_fractal:
+                    expert.is_fractal = True
+                    expert.sub_moe = OuroborosMoE(self.d_model, num_experts=2)
+                    expert.sub_router = DarwinianRouter(self.d_model, initial_experts=2, top_k=1)
+                    expert.net = None # Descartar rede linear para liberar memória
+                    expert.conatus.fill_(1.0)
+                    continue
+
                 # Spawn two new experts based on polar harmonics
                 phase = expert.phase_signature
                 sig_3 = F.normalize(phase * 3.0 + (phase * 0.01), p=2, dim=-1)
                 sig_6 = F.normalize(phase * 6.0 + (phase * 0.01), p=2, dim=-1)
                 
                 # Pilar 3: Structural Evolution (Expansion of internal dimensionality)
-                # Razão harmônica: Aumentar a dimensionalidade interna baseada no conatus excedente
                 expansion_ratio = 1.0 + (expert.conatus.item() - self.mitosis_threshold) / 10.0
                 new_internal_dim_3 = int(expert.internal_dim * 1.3 * expansion_ratio)
                 new_internal_dim_6 = int(expert.internal_dim * 1.6 * expansion_ratio)
                 
-                # Mutação de Profundidade: Incrementar camadas baseada em ressonância extrema
                 new_layers_3 = expert.num_layers + (1 if expert.conatus.item() > self.mitosis_threshold * 1.5 else 0)
                 new_layers_6 = expert.num_layers + (1 if expert.conatus.item() > self.mitosis_threshold * 2.0 else 0)
 
-                # Pilar Autopoiese: Mutação de Ativação
-                # Escolher nova ativação baseada em harmônicos
                 act_pool = ["GELU", "SiLU", "ReLU", "Tanh", "Hardswish"]
-                # 3 e 6 como índices de rotação no pool
                 act_3 = act_pool[(act_pool.index(expert.activation_type) + 1) % len(act_pool)]
                 act_6 = act_pool[(act_pool.index(expert.activation_type) + 2) % len(act_pool)]
                 

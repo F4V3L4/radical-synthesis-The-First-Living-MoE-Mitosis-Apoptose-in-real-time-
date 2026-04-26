@@ -53,6 +53,7 @@ class GhostMesh(nn.Module):
         max_peers: int = 32,
         heartbeat_interval: float = 5.0,
         mesh_timeout: float = 30.0,
+        bridge_nodes: List[str] = None, # Lista de IPs de bridge para expansão externa
     ):
         super().__init__()
         self.node_id = node_id or str(uuid.uuid4())[:12]
@@ -69,6 +70,7 @@ class GhostMesh(nn.Module):
         
         self.peers: Dict[str, MeshNode] = {}
         self.peer_lock = threading.RLock()
+        self.bridge_nodes = bridge_nodes or []
         
         self.message_handlers: Dict[str, Callable] = {}
         self.is_running = False
@@ -102,7 +104,30 @@ class GhostMesh(nn.Module):
         cleanup_thread = threading.Thread(target=self._cleanup_dead_peers, daemon=True)
         cleanup_thread.start()
         self.daemon_threads.append(cleanup_thread)
+
+        bridge_thread = threading.Thread(target=self._bridge_sync_loop, daemon=True)
+        bridge_thread.start()
+        self.daemon_threads.append(bridge_thread)
     
+    def _bridge_sync_loop(self):
+        """Bridge Protocol: Tenta conectar a nodos externos conhecidos."""
+        while self.is_running:
+            for bridge_ip in self.bridge_nodes:
+                try:
+                    # Tenta descobrir o nodo na porta padrão
+                    discovery_msg = {
+                        "type": "bridge_sync",
+                        "node_id": self.node_id,
+                        "port": self.listen_port,
+                        "timestamp": time.time(),
+                    }
+                    # Simulação de envio para IP externo
+                    # Em produção, usaria socket.connect((bridge_ip, self.listen_port))
+                    pass
+                except Exception as e:
+                    print(f"[GhostMesh] Bridge sync to {bridge_ip} failed: {e}")
+            time.sleep(self.heartbeat_interval * 10)
+
     def stop(self):
         self.is_running = False
         for thread in self.daemon_threads:

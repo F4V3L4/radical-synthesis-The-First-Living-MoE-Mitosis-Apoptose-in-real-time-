@@ -13,12 +13,24 @@ class TopologicalDivergenceLoss(nn.Module):
     2. Sparsity Loss: Incentiva a ativação esparsa, evitando que muitos Experts sejam ativados
        para uma única entrada, mas de forma controlada para não induzir colapso.
     """
-    def __init__(self, d_model: int, num_experts: int, lambda_load: float = 0.01, lambda_sparsity: float = 0.001):
+    def __init__(self, d_model: int, num_experts: int, lambda_load: float = 0.01, lambda_sparsity: float = 0.001, lambda_thermo: float = 0.005):
         super().__init__()
         self.d_model = d_model
         self.num_experts = num_experts
         self.lambda_load = lambda_load  # Peso para a penalidade de balanceamento de carga
         self.lambda_sparsity = lambda_sparsity # Peso para a penalidade de esparsidade
+        self.lambda_thermo = lambda_thermo # Peso para a penalidade termodinâmica (Telemetria Quântica)
+
+    def _get_quantum_telemetry(self):
+        """
+        Simula a captura de telemetria quântica (hardware-aware).
+        Em um ambiente bare-metal real, isso leria sensores de CPU/GPU.
+        Retorna um tensor de 'custo termodinâmico' para cada expert.
+        """
+        # Omega-0: Determinismo absoluto. Simulamos custos baseados na complexidade teórica.
+        # Experts com IDs mais altos ou em níveis fractais profundos têm maior custo de latência.
+        costs = torch.linspace(1.0, 1.5, self.num_experts)
+        return costs.to(self.lambda_load.device if hasattr(self.lambda_load, 'device') else 'cpu')
 
     def forward(self, expert_weights: torch.Tensor, expert_gates: torch.Tensor) -> torch.Tensor:
         """
@@ -75,8 +87,16 @@ class TopologicalDivergenceLoss(nn.Module):
         # Penaliza a soma dos quadrados dos pesos dos experts para cada token.
         sparsity_loss = (flat_expert_weights ** 2).sum(dim=-1).mean()
 
+        # 3. Quantum Telemetry Loss (Penalidade Termodinâmica)
+        # Objetivo: Minimizar o custo de hardware (latência/energia).
+        # Penaliza a ativação de experts com alto custo termodinâmico.
+        thermo_costs = self._get_quantum_telemetry()
+        thermo_loss = (flat_expert_weights * thermo_costs).sum(dim=-1).mean()
+
         # Combinação das perdas
-        total_loss = self.lambda_load * load_balancing_loss + self.lambda_sparsity * sparsity_loss
+        total_loss = (self.lambda_load * load_balancing_loss + 
+                      self.lambda_sparsity * sparsity_loss + 
+                      self.lambda_thermo * thermo_loss)
         
         return total_loss
 
