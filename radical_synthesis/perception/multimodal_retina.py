@@ -126,12 +126,18 @@ class VideoProcessor(nn.Module):
         video_frames: Lista de tensores de frames [C, H, W].
         """
         if not video_frames:
-            return torch.zeros(self.d_model) # Retorna embedding zero se não houver frames
+            return torch.zeros(1, self.d_model) # Retorna embedding zero se não houver frames
 
-        frame_embeddings = [self.process_frame(frame) for frame in video_frames]
-        # Agregação simples por média dos embeddings dos frames
-        aggregated_embedding = torch.stack(frame_embeddings).mean(dim=0)
-        return aggregated_embedding
+        # Empilhar todos os frames em um único tensor de batch para processamento eficiente
+        frames_tensor = torch.stack(video_frames) # [Batch, C, H, W]
+        
+        # Redimensionar frames para o tamanho esperado pela CNN
+        frames_tensor = F.interpolate(frames_tensor, size=self.frame_size, mode='bilinear', align_corners=False)
+
+        features = self.cnn_encoder(frames_tensor)
+        embeddings = self.linear_projection(features) # [Batch, d_model]
+        
+        return embeddings
 
 
 class TelemetryProcessor(nn.Module):
@@ -187,17 +193,24 @@ class TelemetryProcessor(nn.Module):
         except Exception:
             return torch.rand(8)
     
-    def detect_anomalies(self, telemetry: torch.Tensor) -> float:
+    def detect_anomalies(self, telemetry: torch.Tensor) -> torch.Tensor:
         """Detecta anomalias nos dados de telemetria"""
-        encoded = self.telemetry_encoder(telemetry.unsqueeze(0))
+        if telemetry.dim() == 1:
+            telemetry = telemetry.unsqueeze(0)
+        encoded = self.telemetry_encoder(telemetry)
         anomaly_score = torch.sigmoid(self.anomaly_detector(encoded))
-        return anomaly_score.item()
+        return anomaly_score
     
-    def forward(self, _: torch.Tensor = None) -> Tuple[torch.Tensor, float]:
+    def forward(self, telemetry: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """Processa telemetria e retorna embedding + score de anomalia"""
-        metrics = self.extract_system_metrics()
-        embedding = self.telemetry_encoder(metrics.unsqueeze(0)).squeeze(0)
-        anomaly_score = self.detect_anomalies(metrics)
+        if telemetry is None:
+            telemetry = self.extract_system_metrics().unsqueeze(0)
+        
+        if telemetry.dim() == 1:
+            telemetry = telemetry.unsqueeze(0)
+            
+        embedding = self.telemetry_encoder(telemetry)
+        anomaly_score = self.detect_anomalies(telemetry)
         return embedding, anomaly_score
 
 
@@ -252,13 +265,13 @@ class MultimodalRetina(nn.Module):
         # Sincronizar dimensão de batch se necessário (usando o batch do texto como referência)
         batch_size = text_embedding.shape[0]
         if audio_embedding.shape[0] != batch_size:
-            audio_embedding = audio_embedding.expand(batch_size, -1)
+            audio_embedding = audio_embedding.expand(batch_size, -1).contiguous()
         if telemetry_embedding.shape[0] != batch_size:
-            telemetry_embedding = telemetry_embedding.expand(batch_size, -1)
+            telemetry_embedding = telemetry_embedding.expand(batch_size, -1).contiguous()
         if video_embedding.shape[0] != batch_size:
-            video_embedding = video_embedding.expand(batch_size, -1)
+            video_embedding = video_embedding.expand(batch_size, -1).contiguous()
         
-        combined = torch.cat([text_embedding, audio_embedding, telemetry_embedding, video_embedding], dim=-1)
+        combined = torch.cat([text_embedding, audio_embedding, telemetry_embedding, video_embedding], dim=-1).contiguous()
         output = self.fusion_layer(combined)
         
         return output
@@ -280,16 +293,37 @@ class MultimodalRetina(nn.Module):
             else:
                 text_embedding = F.interpolate(text_embedding.unsqueeze(1), size=self.d_model, mode='linear', align_corners=False).squeeze(1)
 
+        # Garantir que text_embedding seja [Batch, d_model]
+        if text_embedding.dim() == 1:
+            text_embedding = text_embedding.unsqueeze(0)
+        batch_size = text_embedding.shape[0]
+
         if audio is None:
-            audio = torch.randn(1, 16000)
+            audio = torch.randn(batch_size, 16000)
+        elif audio.dim() == 1:
+            audio = audio.unsqueeze(0)
+        
         if telemetry is None:
-            telemetry = torch.randn(1, 8)
+            telemetry = torch.randn(batch_size, 8)
+        elif telemetry.dim() == 1:
+            telemetry = telemetry.unsqueeze(0)
+            
         if video_frames is None:
-            video_frames = [torch.randn(3, 64, 64)] # Simula um frame de vídeo
+            video_frames = [torch.randn(3, 64, 64) for _ in range(batch_size)]
         
         audio_embedding = self.audio_processor(audio)
         telemetry_embedding, anomaly_score = self.telemetry_processor(telemetry)
         video_embedding = self.video_processor(video_frames)
+        
+        # Sincronização de batch para video_embedding
+        # VideoProcessor retorna [len(video_frames), d_model]
+        if video_embedding.shape[0] != batch_size:
+            if video_embedding.shape[0] > batch_size:
+                # Se temos mais frames que o batch, truncamos (simplificação)
+                video_embedding = video_embedding[:batch_size]
+            else:
+                # Se temos menos, expandimos
+                video_embedding = video_embedding.expand(batch_size, -1).contiguous()
         
         fused = self.fuse_modalities(text_embedding, audio_embedding, telemetry_embedding, video_embedding)
         

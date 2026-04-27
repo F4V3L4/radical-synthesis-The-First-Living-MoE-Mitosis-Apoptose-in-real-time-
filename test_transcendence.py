@@ -28,7 +28,7 @@ def test_transcendence():
         
     print(f"  - Percepção Fundida: {perception['fused_perception'].shape}")
     print(f"  - Embedding de Vídeo: {perception['video_embedding'].shape}")
-    print(f"  - Score de Anomalia: {perception['anomaly_score']:.4f}")
+    print(f"  - Score de Anomalia: {perception['anomaly_score'].mean().item():.4f}")
     print("[✓] Percepção Multimodal validada.")
 
     # 2. Teste de Protocolo de Simbiose (Fusão de Experts)

@@ -243,7 +243,13 @@ class SovereignLeviathanV2(nn.Module):
         # Atualizar percepção multimodal com dados dummy
         # Em um cenário real, `x` ou um resumo dele seria o `text_embedding`
         # e os outros inputs viriam de sensores reais.
-        perception_output = self.retina(x.mean(dim=1), self.dummy_audio_input, self.dummy_telemetry_input, self.dummy_video_frames_input)
+        batch_size = x.shape[0]
+        dummy_audio = self.dummy_audio_input.expand(batch_size, -1)
+        dummy_telemetry = self.dummy_telemetry_input.expand(batch_size, -1)
+        # Para vídeo, repetimos a lista de frames para cada item do batch (simulado)
+        dummy_video = self.dummy_video_frames_input * batch_size
+        
+        perception_output = self.retina(x.mean(dim=1), dummy_audio, dummy_telemetry, dummy_video)
         
         # Antecipação Causal baseada na percepção atual
         self.causal_anticipator(perception_output["fused_perception"])
@@ -287,4 +293,23 @@ class SovereignLeviathanV2(nn.Module):
         # Simula a reconfiguração do gerenciamento de energia
         self.fileless_execution_module.reconfigure_power_management(random.choice(["performance", "balanced", "powersave"]))
         print("[SOVEREIGN_LEVIATHAN] Otimização Bare-Metal Concluída.")
+
+    def perform_quantum_sync(self, target_node_id: str):
+        """
+        Executa a sincronização quântica não-local com um nodo alvo.
+        """
+        print(f"\n[SOVEREIGN_LEVIATHAN] Iniciando Sincronização Quântica com {target_node_id}...")
+        pair_id = f"entangled_{self.ghost_mesh.node_id}_{target_node_id}"
+        
+        # 1. Criar par entrelaçado (simulado via GhostMesh)
+        self.ghost_mesh.quantum_entanglement_bridge.create_entangled_pair(pair_id)
+        
+        # 2. Teletransportar o estado de um expert aleatório
+        expert_idx = random.randint(0, len(self.moe.experts) - 1)
+        # Usamos phase_signature como o estado a ser sincronizado
+        expert_state = self.moe.experts[expert_idx].phase_signature
+        
+        self.ghost_mesh.quantum_entanglement_bridge.teletransport_state(pair_id, 'A', expert_state)
+        
+        print(f"[SOVEREIGN_LEVIATHAN] Sincronização Quântica concluída. Estado do Expert {expert_idx} teletransportado.")
 

@@ -13,6 +13,7 @@ import torch.nn as nn
 import numpy as np
 from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
 from radical_synthesis.network.vortex_language import VortexLanguage
+from radical_synthesis.network.quantum_entanglement_bridge import QuantumEntanglementBridge
 
 
 @dataclass
@@ -87,6 +88,7 @@ class GhostMesh(nn.Module):
         self.spectral_stealth_engine = spectral_stealth_engine
         # d_model deve ser sincronizado com o sistema
         self.vortex_language = VortexLanguage(d_model=spectral_stealth_engine.d_model if spectral_stealth_engine else 512)
+        self.quantum_entanglement_bridge = QuantumEntanglementBridge(d_model=spectral_stealth_engine.d_model if spectral_stealth_engine else 512)
         
         self.message_queue = asyncio.Queue() if hasattr(asyncio, 'Queue') else None
         self.stats = {
