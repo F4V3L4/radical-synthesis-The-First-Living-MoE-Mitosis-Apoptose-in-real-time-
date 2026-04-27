@@ -194,6 +194,8 @@ RESPOSTA:"""
         if token_tensor.dim() == 2:
             # Média dos índices como proxy para embedding
             token_mean = token_tensor.float().mean(dim=1, keepdim=True)  # (batch, 1)
+            # Garantir que exige gradiente para treinamento
+            token_mean.requires_grad_(True)
             # Expandir para d_model dimensões
             embedding = token_mean.expand(-1, d_model)  # (batch, d_model)
             return embedding

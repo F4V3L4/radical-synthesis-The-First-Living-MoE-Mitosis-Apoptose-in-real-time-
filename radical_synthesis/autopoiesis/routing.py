@@ -24,7 +24,7 @@ class DarwinianRouter(nn.Module):
             # Se houver mais experts que dimensões, repetimos a base com um shift harmônico
             signatures = torch.cat([signatures] * (initial_experts // input_dim + 1), dim=0)[:initial_experts]
         
-        self.register_buffer('phase_signatures', signatures)
+        self.phase_signatures = nn.Parameter(signatures)
         self._normalize_signatures()
 
     def _normalize_signatures(self):
@@ -83,5 +83,8 @@ class DarwinianRouter(nn.Module):
             signatures.append(sig)
             
         new_signatures = torch.stack(signatures)
-        # Manter como buffer para evitar que o PyTorch tente treinar ou mude o tipo
-        self.register_buffer('phase_signatures', new_signatures, persistent=False)
+        # Sincronizar parâmetro
+        if not isinstance(self.phase_signatures, nn.Parameter):
+            self.phase_signatures = nn.Parameter(new_signatures)
+        else:
+            self.phase_signatures.data.copy_(new_signatures)
