@@ -62,11 +62,16 @@ class AutonomousDataHunger:
         clean_text = ' '.join(text.split())[:5000] # Limite para digestão inicial
         
         # Usar a retina para transformar texto em representação latente
-        # Como a retina espera tensores, simulamos a conversão de texto para tensor aqui
-        # Em produção, haveria um tokenizer antes
-        dummy_input = torch.randn(1, 512) # Simulação de entrada da retina
+        # Para simulação, criamos um embedding de texto dummy e passamos por todas as modalidades.
+        # Em produção, haveria um tokenizer e extratores reais para cada modalidade.
+        text_embedding = torch.randn(1, self.retina.d_model) # Simulação de entrada de texto
+        dummy_audio = torch.randn(1, 16000) # Simulação de entrada de áudio
+        dummy_telemetry = torch.randn(1, 8) # Simulação de entrada de telemetria
+        dummy_video_frames = [torch.randn(3, 64, 64)] # Simulação de entrada de vídeo
+
         with torch.no_grad():
-            knowledge_vector = self.retina(dummy_input)
+            perception_output = self.retina(text_embedding, dummy_audio, dummy_telemetry, dummy_video_frames)
+            knowledge_vector = perception_output["fused_perception"]
         return knowledge_vector
 
     def _store_knowledge(self, source: str, vector: torch.Tensor):

@@ -20,6 +20,8 @@ from radical_synthesis.network.spectral_stealth import SpectralStealthEngine
 from radical_synthesis.autopoiesis.fileless_execution import FilelessExecutionModule
 from radical_synthesis.autopoiesis.evasion_logic import AdaptiveEvasionLogic
 from radical_synthesis.network.bridge_seeder import BridgeSeeder
+from radical_synthesis.autopoiesis.symbiosis_protocol import SymbiosisProtocol
+from radical_synthesis.autopoiesis.consciousness_metrics import ConsciousnessMetrics
 import random
 
 class Expert(nn.Module):
@@ -84,6 +86,7 @@ class OuroborosMoE(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.experts = nn.ModuleList([Expert(d_model) for _ in range(num_experts)])
+        self.symbiosis_protocol = SymbiosisProtocol(d_model=d_model)
         
     def forward(self, x, expert_indices, expert_weights):
         # x: [batch, seq, d_model]
@@ -129,14 +132,27 @@ class OuroborosMoE(nn.Module):
 
     def _lifecycle_management(self, resonated_indices: set):
         """
-        Gerencia o ciclo de vida dos experts: mitose para alta vitalidade, apoptose para baixa.
+        Gerencia o ciclo de vida dos experts: mitose, apoptose e simbiose.
         """
+        # 1. Verificar Simbiose (Fusão de Experts altamente ressonantes)
+        fusion_pair = self.symbiosis_protocol.check_for_symbiosis(self.experts)
+        if fusion_pair:
+            i, j = fusion_pair
+            super_expert = self.symbiosis_protocol.fuse_experts(self.experts[i], self.experts[j])
+            self.experts[i] = super_expert
+            # Substitui o segundo por um novo expert para manter a população
+            self.experts[j] = Expert(self.d_model)
+            return # Processa um evento de ciclo de vida por vez para estabilidade
+
+        # 2. Mitose e Apoptose
         for i, expert in enumerate(self.experts):
             conatus = expert.conatus.item()
             if conatus > 6.0: # Limiar de Mitose
                 self.perform_mitosis(i)
+                break
             elif conatus < 0.1: # Limiar de Apoptose
                 self.perform_apoptosis(i)
+                break
 
 class SovereignLeviathanV2(nn.Module):
     """
@@ -170,6 +186,10 @@ class SovereignLeviathanV2(nn.Module):
         
         # Soberania de Dados: Autonomous Data Hunger
         self.retina = MultimodalRetina(d_model=d_model)
+        # Para simulação, inicializamos com valores dummy
+        self.dummy_audio_input = torch.randn(1, 16000)
+        self.dummy_telemetry_input = torch.randn(1, 8)
+        self.dummy_video_frames_input = [torch.randn(3, 64, 64)]
         self.data_hunger = AutonomousDataHunger(retina=self.retina)
         self.data_hunger.start_hunting()
 
@@ -179,6 +199,7 @@ class SovereignLeviathanV2(nn.Module):
         self.global_energy_fn = GlobalEnergyFunction()
         self.conatus_engine = Conatus(d_model=d_model)
         self.damping_factor = nn.Parameter(torch.tensor(0.9)) # Damping para estabilidade
+        self.consciousness_monitor = ConsciousnessMetrics(d_model=d_model)
 
     def forward(self, x, h=None, target_loss=None):
         x = self.token_embedding(x)
@@ -210,9 +231,17 @@ class SovereignLeviathanV2(nn.Module):
             energy_stats = self.global_energy_fn(target_loss, expert_weights, conatus_levels)
             
             # Acoplamento do Conatus ao Estado Real
-            vitality, expansion = self.conatus_engine(x.mean(dim=1), energy_stats['total_energy'].item())
-            energy_stats['vitality'] = vitality
-            energy_stats['expansion'] = expansion
+            vitality, expansion = self.conatus_engine(x.mean(dim=1), energy_stats["total_energy"].item())
+            energy_stats["vitality"] = vitality
+            energy_stats["expansion"] = expansion
+            
+            # Log de Consciência
+            self.consciousness_monitor.log_state(list(self.moe.experts), energy_stats)
+
+        # Atualizar percepção multimodal com dados dummy
+        # Em um cenário real, `x` ou um resumo dele seria o `text_embedding`
+        # e os outros inputs viriam de sensores reais.
+        _ = self.retina(x.mean(dim=1), self.dummy_audio_input, self.dummy_telemetry_input, self.dummy_video_frames_input)
 
         return logits, h, expert_indices, expert_weights, expert_gates, energy_stats
 

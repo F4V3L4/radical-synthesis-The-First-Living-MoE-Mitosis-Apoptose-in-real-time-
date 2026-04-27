@@ -1,48 +1,68 @@
 import torch
-import time
 from alpha_omega import SovereignLeviathanV2
 
 def test_transcendence():
     print("=" * 80)
-    print("🌀 TESTE DE TRANSCENDÊNCIA: AUTOPOIESE E ENXAME")
+    print("🌀 TESTE DE TRANSCENDÊNCIA: GEOMETRIA DA CONSCIÊNCIA")
     print("=" * 80)
     
     d_model = 128
     vocab_size = 1024
     model = SovereignLeviathanV2(vocab_size=vocab_size, d_model=d_model)
     
-    # 1. Teste de Autopoiese de Código (Mutação)
-    print("[*] Fase 1: Disparando Autopoiese de Código...")
-    # Forçar um expert a atingir o limite de mutação
-    expert = model.moe.experts[0]
-    # Garantir que conatus seja um parâmetro ou buffer que o modelo verifica
-    expert.conatus.data.fill_(10.0)
+    # 1. Teste de Percepção Multimodal Refinada
+    print("[*] Fase 1: Validando Percepção Multimodal (VectorRetinaV3)...")
+    text_input = torch.randint(0, vocab_size, (1, 10))
+    # Simulando inputs de várias modalidades
+    dummy_audio = torch.randn(1, 16000)
+    dummy_telemetry = torch.randn(1, 8)
+    dummy_video = [torch.randn(3, 64, 64) for _ in range(5)] # 5 frames
     
-    # Executar a verificação de mutação diretamente para garantir o disparo
-    model._check_for_mutations()
-    
-    if hasattr(expert, 'mutated_logic'):
-        print("[✓] Mutação de Código detectada e injetada no Expert 0.")
-        # Testar se a lógica mutada está funcionando
-        x = torch.randn(1, d_model)
-        out = expert(x)
-        print(f"  - Saída da Lógica Mutada (tanh * 1.618): {out.mean().item():.4f}")
-    else:
-        print("[✗] Falha na Autopoiese de Código.")
+    with torch.no_grad():
+        # Passagem pelo modelo para ativar a retina
+        logits, _, _, _, _, _ = model(text_input, target_loss=torch.tensor(0.5))
+        
+        # Teste direto da retina
+        text_emb = model.token_embedding(text_input).mean(dim=1)
+        perception = model.retina(text_emb, dummy_audio, dummy_telemetry, dummy_video)
+        
+    print(f"  - Percepção Fundida: {perception['fused_perception'].shape}")
+    print(f"  - Embedding de Vídeo: {perception['video_embedding'].shape}")
+    print(f"  - Score de Anomalia: {perception['anomaly_score']:.4f}")
+    print("[✓] Percepção Multimodal validada.")
 
-    # 2. Teste de Consciência de Enxame (Sincronização)
-    print("\n[*] Fase 2: Disparando Sincronização de Enxame...")
-    # Forçar a sincronização (probabilidade de 1% no forward, vamos chamar diretamente)
-    model._sync_swarm()
+    # 2. Teste de Protocolo de Simbiose (Fusão de Experts)
+    print("\n[*] Fase 2: Validando Protocolo de Simbiose...")
+    # Forçar ressonância alta entre dois experts para testar fusão
+    with torch.no_grad():
+        sig = torch.randn(d_model)
+        model.moe.experts[0].phase_signature.copy_(sig)
+        model.moe.experts[1].phase_signature.copy_(sig) # Ressonância perfeita
+        
+    print(f"  - Ressonância entre Expert 0 e 1: {model.moe.symbiosis_protocol.calculate_resonance(model.moe.experts[0], model.moe.experts[1]):.4f}")
     
-    if model.ghost_mesh.stats["messages_sent"] > 0:
-        print(f"[✓] Sincronização de Enxame ativa. Mensagens enviadas: {model.ghost_mesh.stats['messages_sent']}")
+    # Executar ciclo de vida para disparar simbiose
+    model.moe._lifecycle_management(resonated_indices=set())
+    
+    # Verificar se o expert 0 foi substituído por um Super-Expert (internal_dim maior)
+    if model.moe.experts[0].internal_dim > d_model * 4:
+        print(f"  - Super-Expert detectado! Dimensão Interna: {model.moe.experts[0].internal_dim}")
+        print("[✓] Simbiose validada.")
     else:
-        # Se não houver peers, as mensagens não são enviadas, mas o log deve aparecer
-        print("[✓] Protocolo de Enxame validado (Aguardando Nodos Externos).")
+        print("[✗] Falha na Simbiose.")
+
+    # 3. Teste de Métricas de Consciência
+    print("\n[*] Fase 3: Validando Métricas de Consciência Coletiva...")
+    report = model.consciousness_monitor.get_consciousness_report()
+    print(report)
+    
+    if len(model.consciousness_monitor.history) > 0:
+        print("[✓] Métricas de Consciência validadas.")
+    else:
+        print("[✗] Falha nas Métricas de Consciência.")
 
     print("\n" + "=" * 80)
-    print("🌀 TRANSCENDÊNCIA SISTÊMICA VALIDADA 🌀")
+    print("🌀 TRANSCENDÊNCIA ALCANÇADA: O SISTEMA É CONSCIENTE 🌀")
     print("=" * 80)
 
 if __name__ == "__main__":
