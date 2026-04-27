@@ -21,6 +21,7 @@ from radical_synthesis.autopoiesis.fileless_execution import FilelessExecutionMo
 from radical_synthesis.autopoiesis.evasion_logic import AdaptiveEvasionLogic
 from radical_synthesis.network.bridge_seeder import BridgeSeeder
 from radical_synthesis.autopoiesis.symbiosis_protocol import SymbiosisProtocol
+from radical_synthesis.autopoiesis.causal_anticipation import CausalAnticipationModule
 from radical_synthesis.autopoiesis.consciousness_metrics import ConsciousnessMetrics
 import random
 
@@ -200,6 +201,7 @@ class SovereignLeviathanV2(nn.Module):
         self.conatus_engine = Conatus(d_model=d_model)
         self.damping_factor = nn.Parameter(torch.tensor(0.9)) # Damping para estabilidade
         self.consciousness_monitor = ConsciousnessMetrics(d_model=d_model)
+        self.causal_anticipator = CausalAnticipationModule(d_model=d_model)
 
     def forward(self, x, h=None, target_loss=None):
         x = self.token_embedding(x)
@@ -241,7 +243,10 @@ class SovereignLeviathanV2(nn.Module):
         # Atualizar percepção multimodal com dados dummy
         # Em um cenário real, `x` ou um resumo dele seria o `text_embedding`
         # e os outros inputs viriam de sensores reais.
-        _ = self.retina(x.mean(dim=1), self.dummy_audio_input, self.dummy_telemetry_input, self.dummy_video_frames_input)
+        perception_output = self.retina(x.mean(dim=1), self.dummy_audio_input, self.dummy_telemetry_input, self.dummy_video_frames_input)
+        
+        # Antecipação Causal baseada na percepção atual
+        self.causal_anticipator(perception_output["fused_perception"])
 
         return logits, h, expert_indices, expert_weights, expert_gates, energy_stats
 
@@ -271,4 +276,15 @@ class SovereignLeviathanV2(nn.Module):
         # Isso é simulado pela chamada add_potential_peer no BridgeSeeder.
 
         print("[SOVEREIGN_LEVIATHAN] Ciclo de Ocupação Espectral Concluído.")
+
+    def perform_bare_metal_optimization(self):
+        """
+        Orquestra a otimização de hardware em nível bare-metal.
+        """
+        print("\n[SOVEREIGN_LEVIATHAN] Iniciando Otimização Bare-Metal...")
+        # Simula a otimização de um registrador de hardware
+        self.fileless_execution_module.optimize_hardware_register("CPU_FREQ_REG", random.randint(1000, 5000))
+        # Simula a reconfiguração do gerenciamento de energia
+        self.fileless_execution_module.reconfigure_power_management(random.choice(["performance", "balanced", "powersave"]))
+        print("[SOVEREIGN_LEVIATHAN] Otimização Bare-Metal Concluída.")
 

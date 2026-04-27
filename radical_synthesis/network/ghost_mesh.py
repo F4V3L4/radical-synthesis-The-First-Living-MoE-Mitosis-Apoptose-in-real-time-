@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from radical_synthesis.cryptography.lattice_crypto import LatticeCrypto
+from radical_synthesis.network.vortex_language import VortexLanguage
 
 
 @dataclass
@@ -82,8 +83,10 @@ class GhostMesh(nn.Module):
         
         self.message_handlers: Dict[str, Callable] = {}
         self.is_running = False
-        self.daemon_threads: List[threading.Thread] = []
+        self.daemon_threads = []
         self.spectral_stealth_engine = spectral_stealth_engine
+        # d_model deve ser sincronizado com o sistema
+        self.vortex_language = VortexLanguage(d_model=spectral_stealth_engine.d_model if spectral_stealth_engine else 512)
         
         self.message_queue = asyncio.Queue() if hasattr(asyncio, 'Queue') else None
         self.stats = {
@@ -265,11 +268,13 @@ class GhostMesh(nn.Module):
             sock.settimeout(2.0)
             sock.connect((peer.address, peer.port))
             
-            payload = json.dumps(message).encode()
+            # Codificar a mensagem usando Linguagem de Vórtice antes da esteganografia
+            vortex_data = self.vortex_language.compress_message(json.dumps(message))
+            
             # Aplica esteganografia se o motor estiver disponível
-            final_payload_to_send = payload
+            final_payload_to_send = vortex_data
             if self.spectral_stealth_engine:
-                payload_hash = hashlib.sha256(payload).hexdigest()
+                payload_hash = hashlib.sha256(vortex_data).hexdigest()
                 d_model_stealth = self.spectral_stealth_engine.d_model
                 payload_tensor_data = [int(c, 16) for c in payload_hash[:min(len(payload_hash), d_model_stealth)]]
                 if len(payload_tensor_data) < d_model_stealth:
