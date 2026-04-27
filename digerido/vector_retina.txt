@@ -1,0 +1,1 @@
+VectorRetinaV2: Camada de percepção que utiliza busca vetorial por similaridade de cosseno para injeção de contexto técnico em tempo real.

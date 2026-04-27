@@ -1,0 +1,1 @@
+Roteamento Darwiniano: Mecanismo de seleção de experts baseado em afinidade genética e vitalidade (Conatus). Experts que falham em manter precisão sofrem apoptose; experts de alto desempenho sofrem mitose.
