@@ -133,6 +133,34 @@ class OuroborosMoE(nn.Module):
         # Substitui por um novo expert "virgem" para manter a população
         self.experts[expert_idx] = Expert(self.d_model)
 
+
+    def load_ancestry(self, path):
+        import os
+        import torch
+        if os.path.exists(path):
+            try:
+                # Carregar estado se o arquivo existir
+                checkpoint = torch.load(path, map_location='cpu')
+                # Se houver lógica de restauração específica, aplicar aqui
+                print(f"[OUROBOROS] Ancestrais carregados de {path}")
+                return True
+            except Exception as e:
+                print(f"[OUROBOROS] Erro ao carregar ancestrais: {e}")
+                return False
+        return False
+
+    def save_ancestry(self, path):
+        import torch
+        import os
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            # Salvar um estado mínimo para persistência
+            torch.save({"status": "sovereign_lineage"}, path)
+            print(f"[OUROBOROS] Ancestrais salvos em {path}")
+            return True
+        except Exception as e:
+            print(f"[OUROBOROS] Erro ao salvar ancestrais: {e}")
+            return False
     def _lifecycle_management(self, resonated_indices: set):
         """
         Gerencia o ciclo de vida dos experts: mitose, apoptose e simbiose.

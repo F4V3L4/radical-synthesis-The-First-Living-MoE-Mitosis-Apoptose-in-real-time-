@@ -12,7 +12,7 @@ class MutationKernel:
     Kernel de Mutação: O Conatus da Autopoiese de Código.
     Permite que o sistema gere, compile e injete novos comportamentos (módulos) em si mesmo.
     """
-    def __init__(self, lattice_crypto: LatticeCrypto, base_path="/home/ubuntu/OuroborosMoE/mutations"):
+    def __init__(self, lattice_crypto: LatticeCrypto, base_path="./mutations"):
         self.base_path = base_path
         os.makedirs(self.base_path, exist_ok=True)
         if self.base_path not in sys.path:

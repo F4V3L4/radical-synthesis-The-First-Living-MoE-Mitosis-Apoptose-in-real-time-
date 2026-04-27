@@ -10,7 +10,7 @@
 ### Instalação
 
 ```bash
-cd /home/ubuntu/OuroborosMoE_fresh
+cd .
 pip install torch numpy
 ```
 

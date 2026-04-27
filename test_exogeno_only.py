@@ -4,7 +4,7 @@ Teste: Validar que roteamento é 100% exógeno
 
 import torch
 import sys
-sys.path.insert(0, '/home/ubuntu/OuroborosMoE_fresh')
+sys.path.insert(0, '.')
 
 from alpha_omega import SovereignLeviathanV2, OuroborosMoE
 

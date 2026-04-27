@@ -180,7 +180,7 @@ report = {
 print(json.dumps(report, indent=2))
 
 # Salva relatório
-with open("/home/ubuntu/OuroborosMoE/training_report.json", "w") as f:
+with open("./training_report.json", "w") as f:
     json.dump(report, f, indent=2)
 
 print("\n[✓] Relatório salvo em training_report.json")

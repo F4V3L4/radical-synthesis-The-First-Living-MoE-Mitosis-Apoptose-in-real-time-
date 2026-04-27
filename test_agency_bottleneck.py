@@ -5,7 +5,7 @@ Verifica que DarwinianRouter influencia SovereignLeviathanV2
 
 import torch
 import sys
-sys.path.insert(0, '/home/ubuntu/OuroborosMoE_fresh')
+sys.path.insert(0, '.')
 
 from alpha_omega import SovereignLeviathanV2
 from agi_core import AGICore, DarwinianRouter

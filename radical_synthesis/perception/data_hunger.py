@@ -13,7 +13,7 @@ class AutonomousDataHunger:
     Autonomous Data Hunger: O Crawler P2P do OuroborosMoE.
     Caça conhecimento técnico em repositórios, whitepapers e documentações.
     """
-    def __init__(self, retina: MultimodalRetina, storage_path="/home/ubuntu/OuroborosMoE/knowledge_base"):
+    def __init__(self, retina: MultimodalRetina, storage_path="./knowledge_base"):
         self.retina = retina
         self.storage_path = storage_path
         os.makedirs(self.storage_path, exist_ok=True)
