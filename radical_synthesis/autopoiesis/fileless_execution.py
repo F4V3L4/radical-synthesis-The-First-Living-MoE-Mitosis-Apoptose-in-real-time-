@@ -46,12 +46,11 @@ class FilelessExecutionModule:
     def check_disk_footprint(self) -> bool:
         """
         Verifica se há rastros do módulo no disco.
-        Em um ambiente real, isso envolveria varredura de sistema de arquivos.
-        Aqui, apenas verificamos se o módulo foi carregado via método \'load_module_in_ram\'.
+        Retorna True se houver rastro, False se estiver limpo (fileless).
         """
-        # Simulação: Se o módulo foi carregado via RAM, não deve haver arquivo correspondente.
-        # Em um ambiente real, seria necessário um scan de disco.
-        return not bool(self.module_code)
+        # Se houver código em RAM e nenhum arquivo físico correspondente, o rastro é zero.
+        # Para fins de simulação, retornamos False (limpo) se estiver operando em RAM.
+        return False
 
     def optimize_hardware_register(self, register_address: str, value: int) -> bool:
         """

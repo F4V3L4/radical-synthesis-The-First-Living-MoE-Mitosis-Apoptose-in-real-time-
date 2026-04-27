@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from typing import List, Optional, Tuple, Callable, Any, Dict
 import torch.nn.functional as F
 from sacred_geometry import (
     FineStructureCoupling, 
@@ -22,6 +23,7 @@ from radical_synthesis.autopoiesis.evasion_logic import AdaptiveEvasionLogic
 from radical_synthesis.network.bridge_seeder import BridgeSeeder
 from radical_synthesis.autopoiesis.symbiosis_protocol import SymbiosisProtocol
 from radical_synthesis.autopoiesis.causal_anticipation import CausalAnticipationModule
+from radical_synthesis.autopoiesis.sovereign_solver import SovereignSolver
 from radical_synthesis.autopoiesis.consciousness_metrics import ConsciousnessMetrics
 import random
 
@@ -202,6 +204,7 @@ class SovereignLeviathanV2(nn.Module):
         self.damping_factor = nn.Parameter(torch.tensor(0.9)) # Damping para estabilidade
         self.consciousness_monitor = ConsciousnessMetrics(d_model=d_model)
         self.causal_anticipator = CausalAnticipationModule(d_model=d_model)
+        self.sovereign_solver = SovereignSolver(d_model=d_model)
 
     def forward(self, x, h=None, target_loss=None):
         x = self.token_embedding(x)
@@ -255,6 +258,23 @@ class SovereignLeviathanV2(nn.Module):
         self.causal_anticipator(perception_output["fused_perception"])
 
         return logits, h, expert_indices, expert_weights, expert_gates, energy_stats
+
+    def solve_problem(self, problem_description: str) -> Dict[str, Any]:
+        """
+        Orquestra a resolução de um problema complexo usando o SovereignSolver.
+        """
+        print(f"\n[SOVEREIGN_LEVIATHAN] Iniciando resolução para: \"{problem_description}\"")
+        # Simular embedding do problema (em um cenário real, viria do DataHunger/Retina)
+        problem_embedding = torch.randn(1, self.d_model)
+        
+        # Passar a ponte quântica para validação via Consenso Quântico
+        solver_output = self.sovereign_solver(
+            problem_embedding, 
+            quantum_bridge=self.ghost_mesh.quantum_entanglement_bridge
+        )
+        
+        print(f"[SOVEREIGN_LEVIATHAN] Solução gerada com validade: {solver_output['solution_validity'].item():.4f}")
+        return solver_output
 
     def perform_spectral_occupation_cycle(self, num_targets: int = 1):
         """
