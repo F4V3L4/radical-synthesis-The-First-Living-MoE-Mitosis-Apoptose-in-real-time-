@@ -222,10 +222,12 @@ class MultimodalRetina(nn.Module):
     - Telemetria (estado do servidor)
     """
     
-    def __init__(self, d_model: int = 512):
+    def __init__(self, d_model: int = 512, vocab_size: int = 10000):
         super().__init__()
         self.d_model = d_model
+        self.vocab_size = vocab_size
         
+        self.text_encoder = nn.Embedding(vocab_size, d_model) # Adicionado para processar tokens
         self.audio_processor = AudioProcessor(d_model=d_model)
         self.telemetry_processor = TelemetryProcessor(d_model=d_model)
         self.video_processor = VideoProcessor(d_model=d_model)
@@ -278,7 +280,7 @@ class MultimodalRetina(nn.Module):
     
     def forward(
         self,
-        text_embedding: torch.Tensor,
+        text_tokens: torch.Tensor, # Agora recebe tokens diretamente
         audio: Optional[torch.Tensor] = None,
         telemetry: Optional[torch.Tensor] = None,
         video_frames: Optional[List[torch.Tensor]] = None
@@ -286,12 +288,12 @@ class MultimodalRetina(nn.Module):
         """
         Processa múltiplas modalidades e retorna percepção integrada.
         """
-        # Garantir que text_embedding tenha d_model dimensões
-        if text_embedding.shape[-1] != self.d_model:
-            if text_embedding.dim() == 2:
-                text_embedding = F.adaptive_avg_pool1d(text_embedding.unsqueeze(0), self.d_model).squeeze(0)
-            else:
-                text_embedding = F.interpolate(text_embedding.unsqueeze(1), size=self.d_model, mode='linear', align_corners=False).squeeze(1)
+        # Bare-metal Fix: Garantir que text_tokens seja Long para o embedding
+        if text_tokens.dtype != torch.long:
+            text_tokens = text_tokens.long()
+            
+        # Codificar tokens de texto em embedding
+        text_embedding = self.text_encoder(text_tokens).mean(dim=1) # Média dos embeddings dos tokens
 
         # Garantir que text_embedding seja [Batch, d_model]
         if text_embedding.dim() == 1:

@@ -69,6 +69,9 @@ class Expert(nn.Module):
         if self.is_fractal:
             # Roteamento recursivo interno
             weights, indices, _ = self.sub_router(x.mean(dim=1))
+            # Bare-metal Fix: Garantir que x seja Long se for passar para outro embedding
+            # Mas sub_moe não tem embedding, ele recebe o x já embedado.
+            # O problema é se o sub_moe chamar algo que precise de Long.
             return self.sub_moe(x, indices, weights)
         
         # Escultura Cimática: Filtra o sinal através da geometria do expert
@@ -100,13 +103,15 @@ class OuroborosMoE(nn.Module):
         final_output = torch.zeros_like(x)
         
         # Processamento por Expert (Vórtice)
+        # Bare-metal Fix: Garantir que expert_indices seja Long para comparação
+        idx_long = expert_indices.long()
         for i, expert in enumerate(self.experts):
             # Máscara para tokens atribuídos a este expert
-            mask = (expert_indices == i).any(dim=-1)
+            mask = (idx_long == i).any(dim=-1)
             if mask.any():
                 # Obter o peso correspondente para este expert
                 # Simplificação: assume top_k=1 para o mapeamento de pesos
-                expert_idx_in_topk = (expert_indices == i).nonzero(as_tuple=True)[1]
+                expert_idx_in_topk = (idx_long == i).nonzero(as_tuple=True)[1]
                 w = expert_weights[mask, expert_idx_in_topk].unsqueeze(-1).unsqueeze(-1)
                 
                 expert_output = expert(x[mask])
@@ -216,7 +221,7 @@ class SovereignLeviathanV2(nn.Module):
         self.ghost_mesh = GhostMesh(spectral_stealth_engine=self.spectral_stealth_engine)
         
         # Soberania de Dados: Autonomous Data Hunger
-        self.retina = MultimodalRetina(d_model=d_model)
+        self.retina = MultimodalRetina(d_model=d_model, vocab_size=vocab_size)
         # Para simulação, inicializamos com valores dummy
         self.dummy_audio_input = torch.randn(1, 16000)
         self.dummy_telemetry_input = torch.randn(1, 8)
@@ -235,6 +240,9 @@ class SovereignLeviathanV2(nn.Module):
         self.sovereign_solver = SovereignSolver(d_model=d_model)
 
     def forward(self, x, h=None, target_loss=None):
+        # Bare-metal Fix: Garantir que x seja Long para o embedding
+        if x.dtype != torch.long:
+            x = x.long()
         x = self.token_embedding(x)
         x = self.embedding(x)
         

@@ -194,8 +194,6 @@ RESPOSTA:"""
         if token_tensor.dim() == 2:
             # Média dos índices como proxy para embedding
             token_mean = token_tensor.float().mean(dim=1, keepdim=True)  # (batch, 1)
-            # Garantir que exige gradiente para treinamento
-            token_mean.requires_grad_(True)
             # Expandir para d_model dimensões
             embedding = token_mean.expand(-1, d_model)  # (batch, d_model)
             return embedding
@@ -457,7 +455,9 @@ class AGICore(nn.Module):
         """
         with torch.no_grad():
             # Passar roteamento externo ao core
-            logits, _, _, _, _, _ = self.core(tokens, None)
+            # SovereignLeviathanV2.forward(x, h=None, target_loss=None)
+            # Retorno: logits, h, expert_indices, expert_weights, expert_gates, energy_stats
+            logits, _, _, _, _, _ = self.core(tokens)
         return logits
     
     def compute_semantic_divergence(self, response: str, technical_data: str) -> float:
@@ -539,7 +539,7 @@ class AGICore(nn.Module):
                 response_tokens.append(next_token)
                 tokens = torch.cat([
                     tokens,
-                    torch.tensor([[next_token]], device=self.device)
+                    torch.tensor([[next_token]], device=self.device, dtype=torch.long)
                 ], dim=1)
                 
                 logits = self.process(tokens[:, -256:], expert_indices, expert_weights)
@@ -617,10 +617,10 @@ class AGICore(nn.Module):
             if results:
                 print(f"🧬 Ressonância Espontânea detectada: {len(results)} fragmentos encontrados.")
                 # Processar os dados internamente para aumentar o Conatus
-                tokens = torch.randint(0, 1000, (1, 32), device=self.device)
-                proj = self.context_processor.project_to_routing_space(tokens.float(), self.d_model)
+                tokens = torch.randint(0, 1000, (1, 32), device=self.device, dtype=torch.long)
+                proj = self.context_processor.project_to_routing_space(tokens, self.d_model)
                 weights, indices = self.route(proj)
-                self.core(tokens, expert_indices=indices, expert_weights=weights)
+                self.core(tokens)
         except Exception as e:
             print(f"⚠️ Erro na Percepção Ativa: {e}")
 
@@ -673,7 +673,7 @@ class AGICore(nn.Module):
         
         # 3. TOKENIZAÇÃO
         tokens = tokenizer.encode(prompt)
-        token_tensor = torch.tensor([tokens], device=self.device)
+        token_tensor = torch.tensor([tokens], device=self.device, dtype=torch.long)
         
         # 4. ROTEAMENTO (baseado no que o usuário perguntou, não aleatório)
         # Projetar tokens de entrada para espaço de roteamento
@@ -726,7 +726,7 @@ class AGICore(nn.Module):
                 next_token = torch.argmax(next_logits).item()
                 if next_token == 0: break
                 response_tokens.append(next_token)
-                token_tensor = torch.cat([token_tensor, torch.tensor([[next_token]], device=self.device)], dim=1)
+                token_tensor = torch.cat([token_tensor, torch.tensor([[next_token]], device=self.device, dtype=torch.long)], dim=1)
                 logits = self.process(token_tensor[:, -256:], expert_indices, expert_weights)
         response = tokenizer.decode(response_tokens)
 
