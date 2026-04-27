@@ -368,7 +368,7 @@ class AGICore(nn.Module):
         self.tensor_cache = TensorCache(max_entries=500)
 
         # Módulo de Expansão Proativa (Conatus)
-        self.conatus = Conatus(self)
+        self.conatus = Conatus(d_model=d_model)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
@@ -434,7 +434,7 @@ class AGICore(nn.Module):
         with torch.no_grad():
             # Sync router with current live experts before routing
             self.router.sync_with_experts(self.core.moe.experts)
-            weights, indices = self.router(x)
+            weights, indices, _ = self.router(x)
         return weights, indices
     
     def process(self, tokens: torch.Tensor, expert_indices: Optional[torch.Tensor] = None, 
@@ -452,7 +452,7 @@ class AGICore(nn.Module):
         """
         with torch.no_grad():
             # Passar roteamento externo ao core
-            logits, _, _, _ = self.core(tokens, None, expert_indices, expert_weights)
+            logits, _, _, _, _, _ = self.core(tokens, None)
         return logits
     
     def compute_semantic_divergence(self, response: str, technical_data: str) -> float:
