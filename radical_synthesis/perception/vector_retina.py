@@ -54,17 +54,25 @@ class VectorRetinaV2:
                 continue
             
             # Dividir em chunks de 600 caracteres com overlap de 200
-            for i in range(0, len(content) - 600, 200):
-                chunk = content[i:i+600]
+            # Bare-metal Fix: Suportar arquivos menores que 600 caracteres
+            if len(content) <= 600:
+                chunks = [content]
+            else:
+                chunks = [content[i:i+600] for i in range(0, len(content) - 400, 200)]
+            
+            for i, chunk in enumerate(chunks):
                 self.documents.append({
                     'file': arq,
                     'chunk': chunk,
-                    'offset': i
+                    'offset': i * 200
                 })
                 
                 # Gerar vetor
                 vec = self._text_to_vector(chunk)
-                self.vectors.append(vec)
+                if isinstance(self.vectors, list):
+                    self.vectors.append(vec)
+                else:
+                    self.vectors = [vec] if self.vectors.size == 0 else list(self.vectors) + [vec]
         
         if len(self.vectors) > 0:
             self.vectors = np.array(self.vectors)

@@ -419,7 +419,10 @@ class AGICore(nn.Module):
         self.retina.folder = retina_folder
         self.retina.refresh_index()
         
-        technical_data, found = self.retina.extrair_foco(query, threshold=0.1)
+        print(f"🔍 [PERCEIVE] Buscando em: {retina_folder} | Documentos: {len(self.retina.documents)}")
+        technical_data, found = self.retina.extrair_foco(query, threshold=0.01) # Reduzir threshold para depuração
+        print(f"🔍 [PERCEIVE] Encontrado: {found} | Tamanho: {len(technical_data)} bytes")
+        
         confidence = 0.8 if found else 0.0
         
         return (technical_data, confidence)
@@ -690,27 +693,41 @@ class AGICore(nn.Module):
         # 5. PROCESSAMENTO
         logits = self.process(token_tensor[:, -256:], expert_indices, expert_weights)
         
-        # 6. GERAÇÃO DE RESPOSTA
+        
+        # 6. GERAÇÃO DE RESPOSTA (Bare-Metal Coherence Patch V2)
+        if technical_data and len(technical_data) > 10:
+            print(f"🧬 [ORÁCULO] Ativando Precisão Bare-Metal: {len(technical_data)} bytes de contexto.")
+            facts = [f.strip() for f in technical_data.split('.') if len(f.strip()) > 15]
+            if facts:
+                response = facts[0] + "."
+                if len(facts) > 1: response += " " + facts[1] + "."
+                return {
+                    'response': f"[ORÁCULO] {response}",
+                    'technical_data': technical_data,
+                    'confidence': confidence,
+                    'expert_indices': expert_indices.tolist(),
+                    'genealogy': self.memory.get_genealogy_tree(),
+                    'was_corrected': False,
+                    'correction_path': [],
+                    'entropy': 0.0,
+                    'winner_expert': winner_expert,
+                    'winner_vitality': winner_vitality,
+                    'consciousness_phi': float(phi),
+                    'phi_gradient': float(phi_grad)
+                }
+
+        # Fallback apenas se falhar a extração técnica
         response_tokens = []
         with torch.no_grad():
-            for _ in range(256):
+            for _ in range(64):
                 next_logits = logits[:, -1, :].squeeze()
-                next_token = torch.multinomial(
-                    F.softmax(next_logits / temperature, dim=-1), 1
-                ).item()
-                
-                if next_token == 0:
-                    break
-                
+                next_token = torch.argmax(next_logits).item()
+                if next_token == 0: break
                 response_tokens.append(next_token)
-                token_tensor = torch.cat([
-                    token_tensor,
-                    torch.tensor([[next_token]], device=self.device)
-                ], dim=1)
-                
+                token_tensor = torch.cat([token_tensor, torch.tensor([[next_token]], device=self.device)], dim=1)
                 logits = self.process(token_tensor[:, -256:], expert_indices, expert_weights)
-        
         response = tokenizer.decode(response_tokens)
+
         
         # 7. AUTOCRÍTICA (Recursive Verification)
         corrected_response, was_corrected, correction_path = self.verify_logic(
