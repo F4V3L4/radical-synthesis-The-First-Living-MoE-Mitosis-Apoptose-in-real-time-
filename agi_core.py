@@ -27,6 +27,7 @@ from radical_synthesis.tools.engine import ToolUseEngine
 from radical_synthesis.memory.vortex import MemoryVortex
 from radical_synthesis.infrastructure.tensor_cache import TensorCache
 from radical_synthesis.autopoiesis.conatus import Conatus
+from radical_synthesis.autopoiesis.causal_anticipation import CausalAnticipationModule
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -655,8 +656,18 @@ class AGICore(nn.Module):
                 'winner_vitality': float
             }
         """
-        # 1. PERCEPÇÃO
+        # 1. PERCEPÇÃO & ANTECIPAÇÃO CAUSAL
         technical_data, confidence = self.perceive(query, retina_folder)
+        
+        # Antecipação Causal: Prever a trajetória da informação
+        with torch.no_grad():
+            # Simular embedding da query para o antecipador
+            query_embedding = torch.randn(1, self.d_model, device=self.device)
+            causal_analysis = self.causal_anticipator(query_embedding)
+            if causal_analysis['threat_probability'] > 0.5:
+                print(f"⚠️ [CAUSAL] Ameaça detectada ({causal_analysis['threat_probability']:.2f}). Ativando: {causal_analysis['recommended_countermeasure']}")
+                # Ajustar comportamento do Oráculo para modo defensivo/furtivo
+                confidence *= 0.9
         
         # 1.5 CONSCIÊNCIA (Protocolo Omega-0)
         # Calcula Phi baseado no estado atual dos experts

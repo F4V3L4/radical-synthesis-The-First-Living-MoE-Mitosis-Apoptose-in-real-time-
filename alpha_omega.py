@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from radical_synthesis.autopoiesis.quantum_annealing_init import QuantumAnnealingInit
 from typing import List, Optional, Tuple, Callable, Any, Dict
 import torch.nn.functional as F
 from sacred_geometry import (
@@ -28,18 +29,18 @@ from radical_synthesis.autopoiesis.consciousness_metrics import ConsciousnessMet
 import random
 
 class Expert(nn.Module):
-    """Especialista Esculpido por Cimática com Dinâmica de Conatus (Protocolo Mythos-Capybara)"""
-    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU", num_layers=2, is_fractal=False):
+    """Especialista Fractal com Conatus e Quantum Annealing (Tier 3)"""
+    def __init__(self, d_model, phase_signature=None, internal_dim=None, activation_type="GELU", num_layers=2, is_fractal=False, depth=0, max_depth=2):
         super().__init__()
         self.d_model = d_model
         self.internal_dim = internal_dim if internal_dim is not None else d_model * 4
-        self.activation_type = activation_type
-        self.num_layers = num_layers
         self.is_fractal = is_fractal
+        self.depth = depth
+        self.max_depth = max_depth
         
-        if is_fractal:
-            # Mitose Fractal: O Expert torna-se um sub-nodo MoE
-            self.sub_moe = OuroborosMoE(d_model, num_experts=2)
+        if is_fractal and depth < max_depth:
+            # Mitose Fractal: O Expert torna-se um sub-nodo MoE recursivo
+            self.sub_moe = OuroborosMoE(d_model, num_experts=2, depth=depth+1, max_depth=max_depth)
             self.sub_router = DarwinianRouter(d_model, initial_experts=2, top_k=1)
             self.net = None
         else:
@@ -49,16 +50,19 @@ class Expert(nn.Module):
                 nn.GELU() if activation_type == "GELU" else nn.ReLU(),
                 nn.Linear(self.internal_dim, d_model)
             )
+            # Quantum Annealing: Inicialização Harmônica 3-6-9
+            QuantumAnnealingInit.init_expert(self.net)
         
         # Assinatura de Fase (DNA do Expert)
         if phase_signature is not None:
             self.register_buffer('phase_signature', phase_signature)
         else:
-            self.register_buffer('phase_signature', torch.randn(d_model))
+            # Inicialização Harmônica da Assinatura
+            from radical_synthesis.autopoiesis.quantum_annealing_init import cymatic_matrix
+            self.register_buffer('phase_signature', cymatic_matrix(1, d_model).squeeze())
             
-        # Conatus: Vitalidade do Expert (Auto-preservação)
         self.register_buffer('conatus', torch.tensor(1.0))
-        self.age = 0 # Idade do Expert para decaimento de Conatus
+        self.age = 0
 
     def forward(self, x):
         # Decaimento de Conatus baseado na idade (Renovação Sistêmica)
@@ -88,10 +92,11 @@ class Expert(nn.Module):
 
 class OuroborosMoE(nn.Module):
     """Vórtice de Experts com Autopoiese (Mitose/Apoptose)"""
-    def __init__(self, d_model, num_experts=4):
+    def __init__(self, d_model, num_experts=4, depth=0, max_depth=2):
         super().__init__()
         self.d_model = d_model
-        self.experts = nn.ModuleList([Expert(d_model) for _ in range(num_experts)])
+        self.depth = depth
+        self.experts = nn.ModuleList([Expert(d_model, depth=depth, max_depth=max_depth, is_fractal=(depth < max_depth)) for _ in range(num_experts)])
         self.symbiosis_protocol = SymbiosisProtocol(d_model=d_model)
         
     def forward(self, x, expert_indices, expert_weights):

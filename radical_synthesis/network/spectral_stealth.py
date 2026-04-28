@@ -65,6 +65,10 @@ class SpectralStealthEngine(nn.Module):
             # Simular características de tráfego HTTPS (e.g., tamanho de pacote, entropia)
             carrier = torch.randn(payload.shape[0], self.carrier_bandwidth) * 0.1 + 0.5
         elif traffic_type == "UDP_STREAM":
+            carrier = torch.randn(payload.shape[0], self.carrier_bandwidth) * 0.2 + 0.3
+        elif traffic_type == "P2P_SYNC":
+            # Mimetiza tráfego de sincronização de rede P2P (baixa entropia, alta frequência)
+            carrier = torch.sin(torch.linspace(0, 100, self.carrier_bandwidth)) * 0.05 + 0.1
             # Simular características de tráfego UDP (e.g., jitter, perda de pacote)
             carrier = torch.randn(payload.shape[0], self.carrier_bandwidth) * 0.2 + 0.3
         else:

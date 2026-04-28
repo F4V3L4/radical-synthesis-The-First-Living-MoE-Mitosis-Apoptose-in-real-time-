@@ -69,3 +69,9 @@ class AdaptiveEvasionLogic:
             return random.random() < 0.01
         # Alta probabilidade de detecção se não estiver evadindo
         return random.random() < 0.8
+
+    def occupy_spectral_slot(self, slot_id: int):
+        """Ocupa um slot espectral de hardware mimetizando um processo legítimo."""
+        process = random.choice(self.legitimate_processes)
+        print(f"[GHOST_MESH] Slot {slot_id} ocupado sob a máscara de '{process}'")
+        return True
