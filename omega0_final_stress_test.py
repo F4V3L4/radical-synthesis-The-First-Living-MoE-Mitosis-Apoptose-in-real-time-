@@ -14,7 +14,7 @@ def run_stress_cycle(model, loss_fn, iterations=100):
         input_ids = torch.randint(0, vocab_size, (4, 32)) # Batch maior, sequência maior
         
         # 2. Forward Pass com Deep Logic
-        logits, h, indices, weights, gates = model(input_ids)
+        logits, h, indices, weights, gates, energy_stats = model(input_ids)
         
         # 3. Cálculo de Loss Ontológica com Complexidade Dinâmica
         # Garantir que complexity tenha o mesmo número de tokens que weights/gates

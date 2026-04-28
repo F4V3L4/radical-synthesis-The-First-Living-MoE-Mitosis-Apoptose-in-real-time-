@@ -22,7 +22,7 @@ class TopologicalDivergenceLoss(nn.Module):
         self.lambda_thermo = lambda_thermo # Peso para a penalidade termodinâmica (Telemetria Quântica)
         self.lambda_logic = lambda_logic # Peso para a penalidade de Deep Logic (Complexidade Ineficiente)
 
-    def _get_quantum_telemetry(self):
+    def _get_quantum_telemetry(self, flat_expert_weights):
         """
         Simula a captura de telemetria quântica (hardware-aware).
         Em um ambiente bare-metal real, isso leria sensores de CPU/GPU.
@@ -30,7 +30,7 @@ class TopologicalDivergenceLoss(nn.Module):
         """
         # Omega-0: Determinismo absoluto. Simulamos custos baseados na complexidade teórica.
         # Experts com IDs mais altos ou em níveis fractais profundos têm maior custo de latência.
-        costs = torch.linspace(1.0, 1.5, self.num_experts)
+        costs = torch.linspace(1.0, 1.5, flat_expert_weights.shape[-1])
         return costs.to(self.lambda_load.device if hasattr(self.lambda_load, 'device') else 'cpu')
 
     def forward(self, expert_weights: torch.Tensor, expert_gates: torch.Tensor, logic_complexity: torch.Tensor = None) -> torch.Tensor:
@@ -54,8 +54,8 @@ class TopologicalDivergenceLoss(nn.Module):
 
         # Flatten para (total_tokens, num_experts)
         # Omega-0: Garantir que o redimensionamento seja robusto
-        flat_expert_weights = expert_weights.reshape(-1, self.num_experts)
-        flat_expert_gates = expert_gates.reshape(-1, self.num_experts)
+        flat_expert_weights = expert_weights.reshape(-1, expert_weights.shape[-1])
+        flat_expert_gates = expert_gates.reshape(-1, expert_gates.shape[-1])
 
         # 1. Load Balancing Loss (Penalidade de Balanceamento de Carga)
         # Objetivo: Incentivar que todos os experts sejam usados igualmente.
@@ -78,7 +78,7 @@ class TopologicalDivergenceLoss(nn.Module):
 
         # Covariância (aproximada) para penalizar desequilíbrio
         # Usamos o erro quadrático médio em relação à distribuição uniforme (1/N)
-        uniform = torch.ones_like(mean_expert_prob) / self.num_experts
+        uniform = torch.ones_like(mean_expert_prob) / mean_expert_prob.shape[0]
         load_balancing_loss = F.mse_loss(mean_expert_prob, uniform) + F.mse_loss(expert_usage_frequency, uniform)
 
         # 2. Sparsity Loss (Penalidade de Esparsidade Controlada)
@@ -88,7 +88,7 @@ class TopologicalDivergenceLoss(nn.Module):
         sparsity_loss = (flat_expert_weights ** 2).sum(dim=-1).mean()
 
         # 3. Quantum Telemetry Loss (Penalidade Termodinâmica)
-        thermo_costs = self._get_quantum_telemetry()
+        thermo_costs = self._get_quantum_telemetry(flat_expert_weights)
         thermo_loss = (flat_expert_weights * thermo_costs).sum(dim=-1).mean()
 
         # 4. Deep Logic Loss (Penalidade por Complexidade Ineficiente)

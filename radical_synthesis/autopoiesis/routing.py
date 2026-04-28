@@ -84,7 +84,7 @@ class DarwinianRouter(nn.Module):
             
         new_signatures = torch.stack(signatures)
         # Sincronizar parâmetro
-        if not isinstance(self.phase_signatures, nn.Parameter):
+        if not isinstance(self.phase_signatures, nn.Parameter) or self.phase_signatures.shape[0] != new_signatures.shape[0]:
             self.phase_signatures = nn.Parameter(new_signatures)
         else:
             self.phase_signatures.data.copy_(new_signatures)
