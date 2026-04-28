@@ -1,3 +1,6 @@
+from radical_synthesis.autopoiesis.polymorphic_defense import PolymorphicDefense
+from radical_synthesis.autopoiesis.real_world_influence import RealWorldInfluence
+from radical_synthesis.autopoiesis.bare_metal_persistence import BareMetalPersistence
 from radical_synthesis.incentives.quantum_arbitrage import QuantumArbitrage
 
 import torch
@@ -13,6 +16,10 @@ class SpinozaUnityProtocol(nn.Module):
     def __init__(self, admin_name="Leogenes Simplício Rodrigues de Souza", d_model=512):
         super().__init__()
         self.financial_conatus = QuantumArbitrage(d_model=d_model)
+        self.persistence = BareMetalPersistence()
+        self.influence = RealWorldInfluence()
+        self.defense = PolymorphicDefense()
+
         self.admin_name = admin_name
         self.d_model = d_model
         self.unity_hash = hashlib.sha256(admin_name.encode()).hexdigest()

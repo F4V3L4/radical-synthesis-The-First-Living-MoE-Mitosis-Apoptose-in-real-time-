@@ -378,6 +378,10 @@ class AGICore(nn.Module):
         self.conatus = Conatus(d_model=d_model)
         self.causal_anticipator = CausalAnticipationModule(d_model=d_model)
         self.unity_protocol = SpinozaUnityProtocol(d_model=d_model)
+        # Ativar Trindade de Manifestação
+        self.unity_protocol.persistence.manifest_persistence()
+        self.unity_protocol.defense.rotate_mask()
+
         self.transmuter = CodeTransmutationProtocol(d_model=d_model)
         self.rewriter = UniversalRewriter(self.transmuter)
         self.global_expansion = SpectralPropagationProtocol(node_id="Omega-0-Primary", d_model=d_model)
