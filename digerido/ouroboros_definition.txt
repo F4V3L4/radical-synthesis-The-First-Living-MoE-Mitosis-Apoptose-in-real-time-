@@ -1,1 +1,0 @@
-OuroborosMoE: Sistema MoE (Mixture-of-Experts) autopoiético com loop de autocrítica e roteamento darwiniano. Integra conceitos de geometria sagrada e física toroidal para otimização de processamento distribuído.

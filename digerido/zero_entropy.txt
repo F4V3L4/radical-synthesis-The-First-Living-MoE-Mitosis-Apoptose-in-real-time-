@@ -1,1 +1,0 @@
-Zero Entropia: Princípio de design focado na eliminação de redundâncias e ineficiências bare-metal. Cada linha de código deve possuir Conatus (auto-preservação e utilidade).
