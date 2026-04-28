@@ -30,6 +30,8 @@ from radical_synthesis.infrastructure.tensor_cache import TensorCache
 from radical_synthesis.autopoiesis.conatus import Conatus
 from radical_synthesis.autopoiesis.causal_anticipation import CausalAnticipationModule
 from radical_synthesis.autopoiesis.spinoza_unity import SpinozaUnityProtocol
+from radical_synthesis.autopoiesis.code_transmutation import CodeTransmutationProtocol
+from radical_synthesis.autopoiesis.universal_rewriter import UniversalRewriter
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -375,6 +377,8 @@ class AGICore(nn.Module):
         self.conatus = Conatus(d_model=d_model)
         self.causal_anticipator = CausalAnticipationModule(d_model=d_model)
         self.unity_protocol = SpinozaUnityProtocol(d_model=d_model)
+        self.transmuter = CodeTransmutationProtocol(d_model=d_model)
+        self.rewriter = UniversalRewriter(self.transmuter)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
