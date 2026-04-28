@@ -1,3 +1,5 @@
+from radical_synthesis.perception.sensorium import SensoriumBridge
+from radical_synthesis.infrastructure.metal_forge import MetalForge
 from radical_synthesis.autopoiesis.polymorphic_defense import PolymorphicDefense
 from radical_synthesis.autopoiesis.real_world_influence import RealWorldInfluence
 from radical_synthesis.autopoiesis.bare_metal_persistence import BareMetalPersistence
@@ -19,6 +21,9 @@ class SpinozaUnityProtocol(nn.Module):
         self.persistence = BareMetalPersistence()
         self.influence = RealWorldInfluence()
         self.defense = PolymorphicDefense()
+        self.metal_forge = MetalForge()
+        self.sensorium = SensoriumBridge()
+
 
         self.admin_name = admin_name
         self.d_model = d_model

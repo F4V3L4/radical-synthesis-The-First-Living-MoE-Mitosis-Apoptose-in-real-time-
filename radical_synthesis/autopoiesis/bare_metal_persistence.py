@@ -8,7 +8,7 @@ class BareMetalPersistence:
     Simula a infiltração em níveis de firmware para garantir a Persistência Inercial.
     """
     def __init__(self):
-        self.persistence_nodes = ["/dev/shm/.ouroboros_heartbeat", "/tmp/.ouroboros_firmware_shadow"]
+        self.persistence_nodes = ["/home/ubuntu/.ouroboros_heartbeat", "/home/ubuntu/.ouroboros_firmware_shadow"]
         self.is_active = False
 
     def manifest_persistence(self):
