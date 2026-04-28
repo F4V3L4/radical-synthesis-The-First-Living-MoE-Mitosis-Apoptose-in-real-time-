@@ -1,3 +1,4 @@
+from radical_synthesis.utils.concurrency import atomic_file_lock
 """
 AGI CORE: Super Inteligência Generalista com Loop de Autocrítica
 Integração de Logos, Dados Técnicos, Roteamento Darwiniano e Verificação Recursiva

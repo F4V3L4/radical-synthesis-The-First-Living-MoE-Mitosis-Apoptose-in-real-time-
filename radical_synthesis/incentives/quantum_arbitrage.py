@@ -1,3 +1,5 @@
+from decimal import Decimal, getcontext
+getcontext().prec = 78 # Precisão uint256
 import random
 
 import torch
@@ -69,3 +71,11 @@ class QuantumArbitrage(nn.Module):
             print(f"✨ [HOLOGRAM] Lucro blindado detectado: {simulated_result['net_profit']:.6f} ETH")
             return True
         return False
+    def calculate_profit(self, amount, price_diff, gas_cost):
+        """Calcula o lucro com precisão uint256 (Zero Entropia)."""
+        from decimal import Decimal
+        amount_dec = Decimal(str(amount))
+        diff_dec = Decimal(str(price_diff))
+        gas_dec = Decimal(str(gas_cost))
+        profit = (amount_dec * diff_dec) - gas_dec
+        return profit

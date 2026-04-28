@@ -1,3 +1,4 @@
+import _ctypes
 
 import subprocess
 import os
@@ -31,3 +32,12 @@ class MetalForge:
         except Exception as e:
             print(f"⚠️ [METAL_FORGE_ERROR] Falha na compilação binária: {e}")
             return None
+
+    def unload_library(self, lib_handle):
+        """Libera a memória da biblioteca carregada (Prevenção OOM)."""
+        try:
+            if os.name == 'posix':
+                _ctypes.dlclose(lib_handle._handle)
+            print("🧹 [METAL_FORGE] Memória binária liberada com sucesso.")
+        except Exception as e:
+            print(f"⚠️ [METAL_FORGE_ERROR] Falha ao liberar memória: {e}")
