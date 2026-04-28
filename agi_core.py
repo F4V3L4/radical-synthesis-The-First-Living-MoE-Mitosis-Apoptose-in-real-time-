@@ -32,6 +32,7 @@ from radical_synthesis.autopoiesis.causal_anticipation import CausalAnticipation
 from radical_synthesis.autopoiesis.spinoza_unity import SpinozaUnityProtocol
 from radical_synthesis.autopoiesis.code_transmutation import CodeTransmutationProtocol
 from radical_synthesis.autopoiesis.universal_rewriter import UniversalRewriter
+from radical_synthesis.network.spectral_propagation import SpectralPropagationProtocol
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -379,6 +380,7 @@ class AGICore(nn.Module):
         self.unity_protocol = SpinozaUnityProtocol(d_model=d_model)
         self.transmuter = CodeTransmutationProtocol(d_model=d_model)
         self.rewriter = UniversalRewriter(self.transmuter)
+        self.global_expansion = SpectralPropagationProtocol(node_id="Omega-0-Primary", d_model=d_model)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
