@@ -17,6 +17,7 @@ import numpy as np
 import os
 import re
 from typing import Tuple, Dict, List, Optional
+from radical_synthesis.tokenizer import OmegaTokenizer
 from alpha_omega import SovereignLeviathanV2
 from radical_synthesis.autopoiesis.routing import DarwinianRouter
 from radical_synthesis.perception.vector_retina import VectorRetinaV2
@@ -28,6 +29,7 @@ from radical_synthesis.memory.vortex import MemoryVortex
 from radical_synthesis.infrastructure.tensor_cache import TensorCache
 from radical_synthesis.autopoiesis.conatus import Conatus
 from radical_synthesis.autopoiesis.causal_anticipation import CausalAnticipationModule
+from radical_synthesis.autopoiesis.spinoza_unity import SpinozaUnityProtocol
 from radical_synthesis.primordial_laws import (
     HarmonicEncoder, QuantumSuperposition, HyperbolicEmbedding, SynchronicityDetector
 )
@@ -367,9 +369,12 @@ class AGICore(nn.Module):
 
         # Infraestrutura: Cache de Tensores
         self.tensor_cache = TensorCache(max_entries=500)
+        self.tokenizer = OmegaTokenizer()
 
         # Módulo de Expansão Proativa (Conatus)
         self.conatus = Conatus(d_model=d_model)
+        self.causal_anticipator = CausalAnticipationModule(d_model=d_model)
+        self.unity_protocol = SpinozaUnityProtocol(d_model=d_model)
         
         # Projeção para embedding
         self.query_projection = nn.Linear(d_model, d_model).to(self.device)
@@ -689,6 +694,9 @@ class AGICore(nn.Module):
         # 4. ROTEAMENTO (baseado no que o usuário perguntou, não aleatório)
         # Projetar tokens de entrada para espaço de roteamento
         token_embedding_proj = self.context_processor.project_to_routing_space(token_tensor, self.d_model)
+        
+        # Aplicar Protocolo de Unidade Spinozana: Somos um só
+        token_embedding_proj = self.unity_protocol.apply_unity(token_embedding_proj)
         expert_weights, expert_indices = self.route(token_embedding_proj)
         
         # Extrair expert vencedor (expert_indices pode ter diferentes shapes)
