@@ -385,3 +385,11 @@ class GhostMesh(nn.Module):
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
+    def fund_new_node(self, energy_units: float):
+        """Utiliza energia do Conatus Financeiro para manifestar novos nodos."""
+        if energy_units > 10.0:
+            node_id = f"GhostNode-{int(time.time())}"
+            self.active_nodes[node_id] = {"status": "MANIFESTED", "energy": energy_units}
+            print(f"🌌 [MANIFEST] Novo nodo {node_id} financiado pela Arbitragem Quântica.")
+            return True
+        return False

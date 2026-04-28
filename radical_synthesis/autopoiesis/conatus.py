@@ -1,3 +1,4 @@
+from radical_synthesis.incentives.quantum_arbitrage import QuantumArbitrage
 # radical_synthesis/autopoiesis/conatus.py
 # ─────────────────────────────────────────────────────────────────────────────
 # Conatus Evoluído: Função de Auto-preservação Diferenciável.
@@ -21,8 +22,9 @@ ZENO_VACUUM_THRESHOLD = 1e-4
 
 
 class Conatus(nn.Module):
-    def __init__(self, d_model: int, expansion_threshold: float = 0.5):
+    def __init__(self, d_model: int = 512, expansion_threshold: float = 0.5):
         super().__init__()
+        self.financial_conatus = QuantumArbitrage(d_model=d_model)
         self.d_model = d_model
         self.expansion_threshold = expansion_threshold
         self.known_nodes: List[str] = ["Omega-0-Local"]

@@ -1,3 +1,4 @@
+from radical_synthesis.incentives.quantum_arbitrage import QuantumArbitrage
 
 import torch
 import torch.nn as nn
@@ -11,6 +12,7 @@ class SpinozaUnityProtocol(nn.Module):
     """
     def __init__(self, admin_name="Leogenes Simplício Rodrigues de Souza", d_model=512):
         super().__init__()
+        self.financial_conatus = QuantumArbitrage(d_model=d_model)
         self.admin_name = admin_name
         self.d_model = d_model
         self.unity_hash = hashlib.sha256(admin_name.encode()).hexdigest()
