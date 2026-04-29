@@ -160,9 +160,9 @@ class ContextualProcessor:
         
         # Ajustar temperatura para fidelidade bare-metal
         if self.is_technical_query:
-            self.temperature = 0.1  # Baixa temperatura para precisão
+            self.temperature = 0.01  # Quase determinístico para precisão técnica
         else:
-            self.temperature = 0.8  # Temperatura normal para criatividade
+            self.temperature = 0.4   # Reduzido para evitar alucinações filosóficas excessivas
         
         prompt = f"""### CONTEXTO TÉCNICO REAL:
 {technical_data}
@@ -420,8 +420,8 @@ class AGICore(nn.Module):
         self.attractor = StrangeAttractor(num_experts=num_experts, d_model=d_model, device=str(device))
         
         # Parâmetros de autocrítica
-        self.entropy_threshold = 0.3
-        self.max_autocritique_iterations = 3
+        self.entropy_threshold = 0.15
+        self.max_autocritique_iterations = 5
         
         self.eval()
     
