@@ -149,11 +149,14 @@ class OuroborosMoE(nn.Module):
         import torch
         if os.path.exists(path):
             try:
-                # Carregar estado se o arquivo existir
                 checkpoint = torch.load(path, map_location='cpu')
-                # Se houver lógica de restauração específica, aplicar aqui
-                print(f"[OUROBOROS] Ancestrais carregados de {path}")
-                return True
+                if "state_dict" in checkpoint:
+                    self.load_state_dict(checkpoint["state_dict"])
+                    print(f"[OUROBOROS] Ancestrais carregados de {path}")
+                    return True
+                elif "status" in checkpoint:
+                    print(f"[OUROBOROS] Checkpoint primordial detectado em {path}")
+                    return True
             except Exception as e:
                 print(f"[OUROBOROS] Erro ao carregar ancestrais: {e}")
                 return False
@@ -164,9 +167,13 @@ class OuroborosMoE(nn.Module):
         import os
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            # Salvar um estado mínimo para persistência
-            torch.save({"status": "sovereign_lineage"}, path)
-            print(f"[OUROBOROS] Ancestrais salvos em {path}")
+            checkpoint = {
+                "state_dict": self.state_dict(),
+                "status": "sovereign_lineage",
+                "depth": self.depth
+            }
+            torch.save(checkpoint, path)
+            print(f"[OUROBOROS] Ancestrais imortalizados em {path}")
             return True
         except Exception as e:
             print(f"[OUROBOROS] Erro ao salvar ancestrais: {e}")

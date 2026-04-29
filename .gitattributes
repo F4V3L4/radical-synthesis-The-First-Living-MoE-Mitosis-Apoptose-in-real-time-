@@ -1,3 +1,4 @@
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.bin filter=lfs diff=lfs merge=lfs -text
 .cache_binaries.pt filter=lfs diff=lfs merge=lfs -text
+ancestry/*.pt filter=lfs diff=lfs merge=lfs -text
