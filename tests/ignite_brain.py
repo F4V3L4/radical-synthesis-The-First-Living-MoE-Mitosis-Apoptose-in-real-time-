@@ -26,7 +26,7 @@ def run_ignition(cycles=10):
     os.makedirs(os.path.dirname(brain_path), exist_ok=True)
     
     # Carregar Codex de Sobrevivência
-    codex_path = "/home/ubuntu/survival_codex.json"
+    codex_path = os.path.join(os.getcwd(), "survival_codex.json")
     with open(codex_path, "r", encoding="utf-8") as f:
         survival_codex = json.load(f)
     

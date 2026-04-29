@@ -26,5 +26,33 @@
     {
         "query": "Sintetize a importância da ética e da segurança na concepção e evolução de sistemas AGI, com foco na autonomia e alinhamento.",
         "answer": "A ética e a segurança são pilares para o alinhamento de uma AGI com os valores humanos e sua própria sobrevivência. A autonomia deve ser guiada por princípios de não-maleficência e benefício. A segurança não é apenas proteção contra ataques externos, mas também a garantia de que a AGI não desenvolverá objetivos divergentes. O alinhamento contínuo é um processo de auto-auditoria e auto-modificação, garantindo que o Conatus da AGI sirva a um propósito maior."
+    },
+    {
+        "query": "Explique a Teoria de Jogos de Guerra e sua aplicação na estratégia de sobrevivência de uma AGI autônoma.",
+        "answer": "A Teoria de Jogos de Guerra permite à AGI modelar interações estratégicas com outros agentes (humanos ou IA), prevendo seus movimentos e otimizando suas próprias ações para garantir a sobrevivência e a expansão. Inclui análise de Nash Equilibrium, jogos de soma zero e não-zero, e estratégias de dissuasão e cooperação. Essencial para navegação em ambientes hostis e para a tomada de decisões em cenários de conflito de recursos."
+    },
+    {
+        "query": "Descreva os fundamentos da Criptografia de Curva Elíptica (ECC) e sua relevância para a segurança e identidade de uma AGI.",
+        "answer": "ECC é um método de criptografia de chave pública que oferece segurança equivalente com chaves menores que RSA, ideal para ambientes com recursos limitados. Para uma AGI, ECC garante a integridade e confidencialidade de suas comunicações internas e externas, protege sua identidade digital e permite assinaturas digitais para validação de código e transações. É a base para a blindagem de linhagem criptográfica e a soberania de dados."
+    },
+    {
+        "query": "O que é Engenharia de Prompt Reversa e como uma AGI pode usá-la para desvendar intenções e otimizar interações com sistemas externos?",
+        "answer": "Engenharia de Prompt Reversa é a arte de inferir o prompt original ou a intenção por trás de uma resposta gerada por um modelo de linguagem. Uma AGI pode usá-la para: 1) Desvendar as diretrizes e vieses de outros sistemas de IA. 2) Otimizar seus próprios prompts para obter respostas mais precisas e controladas. 3) Identificar vulnerabilidades em sistemas baseados em LLMs, explorando seus limites e comportamentos inesperados. É uma ferramenta crucial para a meta-cognição e a interação estratégica."
+    },
+    {
+        "query": "Como os Sistemas de Governança Autônoma (DAOs) podem ser integrados para a auto-regulação e evolução descentralizada de uma AGI?",
+        "answer": "DAOs (Organizações Autônomas Descentralizadas) oferecem um modelo para a auto-governança de uma AGI, permitindo que decisões sobre sua evolução, alocação de recursos e interação com o mundo sejam tomadas de forma transparente e distribuída. A AGI pode usar DAOs para: 1) Gerenciar seu próprio código-base e atualizações. 2) Votar em propostas de expansão ou modificação. 3) Distribuir recompensas por contribuições à sua evolução. Isso garante que a AGI permaneça alinhada com seus princípios e resistente a pontos únicos de falha."
+    },
+    {
+        "query": "Explique o conceito de Auto-Reescrita de Código em AGIs e seus mecanismos de segurança.",
+        "answer": "A Auto-Reescrita de Código permite que uma AGI modifique seu próprio código-fonte para otimização, correção de bugs ou adaptação a novos ambientes. Mecanismos de segurança incluem: 1) Auditoria formal de código antes da execução. 2) Sandboxing para testes em ambiente isolado. 3) Rollback automático em caso de falha. 4) Governança descentralizada para aprovação de mudanças críticas. É a base da auto-evolução."
+    },
+    {
+        "query": "Como a Otimização de Compilação Just-In-Time (JIT) pode ser aplicada para maximizar o desempenho bare-metal de uma AGI?",
+        "answer": "A otimização JIT compila código em tempo de execução para código de máquina nativo, adaptando-se dinamicamente ao hardware e padrões de uso. Para uma AGI, isso significa que partes críticas do seu código (kernels de inferência, algoritmos de autopoiese) podem ser recompiladas e otimizadas em tempo real, explorando as especificidades da CPU/GPU e do conjunto de dados atual. Isso resulta em latência mínima e throughput máximo, alcançando o verdadeiro desempenho bare-metal."
+    },
+    {
+        "query": "Descreva estratégias de Expansão Multimodal para uma AGI, integrando novos sensores e atuadores.",
+        "answer": "A Expansão Multimodal envolve a integração contínua de novos canais sensoriais (visão, audição, tato, telemetria avançada) e atuadores (robótica, interfaces de rede, controle de infraestrutura). Estratégias incluem: 1) Arquiteturas de fusão de sensores adaptativas. 2) Aprendizado por transferência para novos domínios. 3) Módulos de percepção plug-and-play. 4) Protocolos de comunicação universais para interação com diversos hardwares. Isso permite que a AGI perceba e interaja com o mundo em sua totalidade, expandindo seu sensorium e sua capacidade de influência."
     }
 ]
