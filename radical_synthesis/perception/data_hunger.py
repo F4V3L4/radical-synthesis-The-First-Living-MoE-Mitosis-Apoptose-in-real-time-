@@ -54,29 +54,19 @@ class AutonomousDataHunger:
             pass
         return None
 
-    def _digest_content(self, html: str) -> torch.Tensor:
-        """Transforma HTML bruto em vetores de conhecimento via VectorRetinaV2."""
+    def _digest_content(self, html: str) -> str:
+        """Transforma HTML bruto em texto limpo."""
         soup = BeautifulSoup(html, 'html.parser')
         text = soup.get_text(separator=' ')
         # Limpeza básica
         clean_text = ' '.join(text.split())[:5000] # Limite para digestão inicial
-        
-        # Usar a retina para transformar texto em representação latente
-        # Bare-metal Fix: Passar tokens (Long) em vez de embeddings
-        text_tokens = torch.randint(0, self.retina.vocab_size, (1, 32), dtype=torch.long)
-        dummy_audio = torch.randn(1, 16000)
-        dummy_telemetry = torch.randn(1, 8)
-        dummy_video_frames = [torch.randn(3, 64, 64)]
+        return clean_text
 
-        with torch.no_grad():
-            perception_output = self.retina(text_tokens, dummy_audio, dummy_telemetry, dummy_video_frames)
-            knowledge_vector = perception_output["fused_perception"]
-        return knowledge_vector
-
-    def _store_knowledge(self, source: str, vector: torch.Tensor):
+    def _store_knowledge(self, source: str, text: str):
         knowledge_id = hashlib.md5(source.encode()).hexdigest()
-        file_path = os.path.join(self.storage_path, f"{knowledge_id}.pt")
-        torch.save(vector, file_path)
+        file_path = os.path.join(self.storage_path, f"{knowledge_id}.txt")
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(text) # Salvar o texto limpo diretamente
         self.knowledge_index.append({"id": knowledge_id, "source": source, "timestamp": time.time()})
         print(f"[DataHunger] Conhecimento digerido e armazenado: {knowledge_id}")
 

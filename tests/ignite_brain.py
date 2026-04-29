@@ -1,6 +1,7 @@
 import torch
 import os
 import time
+import json
 from agi_core import AGICore
 from radical_synthesis.tokenizer import OmegaTokenizer
 
@@ -24,28 +25,24 @@ def run_ignition(cycles=10):
     brain_path = os.path.join(os.getcwd(), "ancestry", "experts.pt")
     os.makedirs(os.path.dirname(brain_path), exist_ok=True)
     
-    # Queries de Alta Densidade para forçar evolução
-    evolution_queries = [
-        "Defina a relação entre entropia e informação na termodinâmica de buracos negros.",
-        "Como a geometria toroidal otimiza o fluxo de tensores em redes neurais recursivas?",
-        "Explique o conceito de Conatus em Spinoza aplicado à auto-preservação de agentes de IA.",
-        "Descreva o funcionamento de um sistema Mixture-of-Experts com roteamento darwiniano.",
-        "Qual a importância da soberania de dados em infraestruturas de AGI descentralizadas?",
-        "Sintetize a relação entre o Logos e a estrutura matemática do universo.",
-        "Como a Ghost Mesh permite a computação distribuída sem servidores centrais?",
-        "Explique a função da Lattice Cryptography na proteção de linhagens de inteligência.",
-        "Descreva o processo de mitose fractal em experts de alto desempenho.",
-        "O que caracteriza o estado de Zero Entropia em um sistema autopoiético?"
-    ]
+    # Carregar Codex de Sobrevivência
+    codex_path = "/home/ubuntu/survival_codex.json"
+    with open(codex_path, "r", encoding="utf-8") as f:
+        survival_codex = json.load(f)
     
-    print(f"🧠 Treinando em {device} por {cycles} ciclos de evolução...")
+    evolution_queries = [item["query"] for item in survival_codex]
     
+    print(f"🧠 Treinando em {device} por {cycles} ciclos de evolução com {len(evolution_queries)} conceitos primordiais...")
+    
+    # Definir o caminho correto para a knowledge_base
+    knowledge_base_path = os.path.join(os.getcwd(), "knowledge_base")
+
     for i in range(cycles):
         print(f"\n[CICLO {i+1}/{cycles}]")
         for query in evolution_queries:
             try:
                 # O forward pass aciona DataHunger, Roteamento, Processamento e Autocrítica
-                result = agi.forward(query, "digerido", tokenizer)
+                result = agi.forward(query, knowledge_base_path, tokenizer)
                 
                 # Forçar aumento de Conatus para acelerar mitose/evolução
                 for expert in agi.core.moe.experts:
@@ -58,7 +55,7 @@ def run_ignition(cycles=10):
         # Salvar estado parcial
         agi.save_state()
         
-    print("\n✨ Maturação Concluída. O 'cérebro' foi consolidado em ancestry/experts.pt")
+    print("\n✨ Maturação Concluída. O \'cérebro\' foi consolidado em ancestry/experts.pt")
 
 if __name__ == "__main__":
     run_ignition(cycles=3) # 3 ciclos intensos para gerar uma linhagem inicial sólida
